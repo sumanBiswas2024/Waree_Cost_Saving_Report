@@ -4,41 +4,51 @@ sap.ui.define([
 	"sap/ui/model/Filter",
 	"sap/ui/model/FilterOperator",
 	"sap/m/MessageToast",
-	"sap/ui/core/format/NumberFormat"
-], function(Controller, JSONModel, Filter, FilterOperator, MessageToast, NumberFormat) {
+	"sap/ui/core/format/NumberFormat",
+	"sap/ui/core/Locale",
+	"sap/viz/ui5/controls/Popover"
+], function(Controller, JSONModel, Filter, FilterOperator, MessageToast, NumberFormat, Locale, VizPopover) {
 	"use strict";
 
 	return Controller.extend("Z_Cost_Saving_Report.controller.View1", {
 		onInit: function() {
 			this.getView().setBusyIndicatorDelay(0);
-			this._currency = NumberFormat.getCurrencyInstance({
-				currencyCode: false,
-				showMeasure: true,
+			var locale = new Locale("en-IN");
+			this._moneyFormat = NumberFormat.getFloatInstance({
+				groupingEnabled: true,
+				minFractionDigits: 2,
 				maxFractionDigits: 2
-			});
+			}, locale);
+			this._rateFormat = NumberFormat.getFloatInstance({
+				groupingEnabled: true,
+				maxFractionDigits: 2
+			}, locale);
+			this._quantityFormat = NumberFormat.getFloatInstance({
+				groupingEnabled: true,
+				maxFractionDigits: 3
+			}, locale);
 			this.getView().setModel(new JSONModel({
 				kpis: [],
-				serials: [],
-				savingBars: [],
-				compareBars: [],
-				distribution: {
-					items: []
-				},
-				grandTotal: {},
-				status: "",
+				wbsGroups: [],
+				projectChartData: [],
+				projectChartWidth: "100%",
+				savingChartTitle: "WBS-wise Saving (Top 10)",
 				hasData: false,
 				emptyMessage: "No project data. Enter a project ID and choose Go."
 			}), "dash");
 			this.byId("statusStrip").setText("Enter a project ID and choose Go.");
 		},
-		_num: function(v) {
-			return Number(v) || 0;
+		_num: function(value) {
+			return Number(value) || 0;
 		},
-		_money: function(v) {
-			return this._currency.format(this._num(v), "INR");
+		_money: function(value) {
+			return "₹ " + this._moneyFormat.format(this._num(value) / 100000) + " L";
 		},
-		_compact: function(v) {
-			return "₹ " + (this._num(v) / 10000000).toFixed(2) + " Cr";
+		_rate: function(value) {
+			return "₹ " + this._rateFormat.format(this._num(value));
+		},
+		_quantity: function(value) {
+			return this._quantityFormat.format(this._num(value));
 		},
 		onGo: function() {
 			this._loadProject(this.byId("projectInput").getValue());
@@ -49,16 +59,15 @@ sap.ui.define([
 		onReset: function() {
 			this.byId("projectInput").setValue("");
 			this._rows = [];
+			this._allWbs = [];
+			this._visibleWbs = [];
+			this._totals = null;
 			this.getView().getModel("dash").setData({
 				kpis: [],
-				serials: [],
-				savingBars: [],
-				compareBars: [],
-				distribution: {
-					items: []
-				},
-				grandTotal: {},
-				status: "",
+				wbsGroups: [],
+				projectChartData: [],
+				projectChartWidth: "100%",
+				savingChartTitle: "WBS-wise Saving (Top 10)",
 				hasData: false,
 				emptyMessage: "No project data. Enter a project ID and choose Go."
 			});
@@ -68,50 +77,240 @@ sap.ui.define([
 		onProjectHelp: function() {
 			MessageToast.show("Enter a project ID and choose Go.");
 		},
-		_loadProject: function(sProject) {
-			sProject = (sProject || "").trim();
+		onAfterRendering: function() {
+			if (!this._resizeHandler) {
+				this._resizeHandler = this._onWindowResize.bind(this);
+				window.addEventListener("resize", this._resizeHandler);
+			}
+		},
+		onExit: function() {
+			if (this._resizeHandler) {
+				window.removeEventListener("resize", this._resizeHandler);
+			}
+		},
+		_onWindowResize: function() {
+			clearTimeout(this._resizeTimer);
+			this._resizeTimer = setTimeout(function() {
+				if (this._allWbs && this._allWbs.length) {
+					this._publish(this._visibleWbs || this._allWbs, this._filteredRows || this._rows);
+				}
+			}.bind(this), 120);
+		},
+		onChartRenderComplete: function(event) {
+			this._configureVizFrame(event.getSource());
+		},
+		_configureVizFrame: function(frame) {
+			this._sizeVizFrame(frame);
+			if (!frame.data("vizConfigured")) {
+				var isSaving = frame.hasStyleClass("savingViz") || frame.hasStyleClass("materialSavingViz");
+				var isComparison = frame.hasStyleClass("compareViz");
+				frame.setVizProperties({
+					title: {
+						visible: false
+					},
+					legend: {
+						visible: true
+					},
+					legendGroup: {
+						layout: {
+							position: "left"
+						}
+					},
+					plotArea: {
+						dataLabel: {
+							visible: true,
+							hideWhenOverlap: false,
+							position: "outside",
+							formatString: [isComparison ? "#,##0.#" : "#,##0.##"]
+						},
+						colorPalette: isSaving ? ["#16834A", "#D64545"] : ["#F39A22", "#16834A"]
+					},
+					valueAxis: {
+						title: {
+							visible: true,
+							text: "Amount (₹ L)"
+						}
+					},
+					categoryAxis: {
+						title: {
+							visible: false
+						},
+						maxSizeRatio: 0.42,
+						label: {
+							visible: true,
+							angle: 0,
+							rotation: "fixed"
+						}
+					}
+				});
+				frame.data("vizConfigured", true);
+			}
+			if (!frame.data("popoverConnected")) {
+				var popover = new VizPopover({});
+				this.getView().addDependent(popover);
+				popover.connect(frame.getVizUid());
+				frame.data("popoverConnected", true);
+			}
+		},
+		_sizeVizFrame: function(frame) {
+			var viewport = frame.getDomRef(),
+				node = viewport;
+			while (node && !(node.classList && node.classList.contains("chartViewport"))) {
+				node = node.parentElement;
+			}
+			var viewportWidth = node && node.clientWidth || this._chartViewportWidth();
+			var configuredWidth = parseFloat(frame.getWidth());
+			var chartWidth = frame.getWidth() && frame.getWidth().indexOf("%") < 0 && configuredWidth > viewportWidth ? configuredWidth :
+				viewportWidth;
+			if (!chartWidth || !isFinite(chartWidth)) {
+				return;
+			}
+			var chartContainer = frame.getParent();
+			while (chartContainer && !chartContainer.hasStyleClass("suiteChartContainer")) {
+				chartContainer = chartContainer.getParent();
+			}
+			var isFullScreen = chartContainer && chartContainer.getFullScreen();
+			var baseHeight = frame.data("baseHeight") || frame.getHeight();
+			frame.data("baseHeight", baseHeight);
+			if (isFullScreen) {
+				var fullHeight = Math.max(360, (window.innerHeight || 800) - 110);
+				if (node) {
+					node.style.height = fullHeight + "px";
+				}
+				frame.setHeight(Math.max(300, fullHeight - 40) + "px");
+			} else {
+				if (node) {
+					node.style.height = "310px";
+				}
+				if (frame.getHeight() !== baseHeight) {
+					frame.setHeight(baseHeight);
+				}
+			}
+			var inner = viewport;
+			while (inner && !(inner.classList && inner.classList.contains("chartInner"))) {
+				inner = inner.parentElement;
+			}
+			[inner, viewport].forEach(function(dom) {
+				if (!dom) {
+					return;
+				}
+				dom.style.width = chartWidth + "px";
+				dom.style.minWidth = chartWidth + "px";
+				dom.style.maxWidth = "none";
+				dom.style.flex = "0 0 " + chartWidth + "px";
+			});
+		},
+		_loadProject: function(projectId) {
+			var sProject = (projectId || "").trim();
 			if (!sProject) {
 				this._setStatus("Enter a project ID to load project data.", "Information");
 				return;
 			}
+			var localDataMode = this._isLocalDataMode(sProject);
 			var oModel = this.getOwnerComponent().getModel();
-			if (!oModel) {
+			if (!localDataMode && !oModel) {
 				console.log("Project service model is unavailable");
 				this._setStatus("The project data service is unavailable.", "Error");
 				return;
 			}
-			this.getView().getModel("dash").setData({kpis: [], serials: [], savingBars: [], compareBars: [], distribution: {items: []}, grandTotal: {}, hasData: false, emptyMessage: "Loading project data…"});
+			this._rows = [];
+			this._allWbs = [];
+			this._visibleWbs = [];
+			this._totals = null;
+			this.getView().getModel("dash").setData({
+				kpis: [],
+				wbsGroups: [],
+				projectChartData: [],
+				projectChartWidth: "100%",
+				savingChartTitle: "WBS-wise Saving (Top 10)",
+				hasData: false,
+				emptyMessage: "Loading project data…"
+			});
 			this._setStatus("Loading project " + sProject + "…", "Information");
 			this.getView().setBusy(true);
-			this._readAll(oModel, [new Filter("PROJ_PSPNR", FilterOperator.EQ, sProject)]).then(function(aRows) {
-				console.log("Project cost records loaded", aRows.length);
-				this._renderData(aRows);
+			var readPromise = localDataMode ? this._readLocalData(sProject) : this._readAll(oModel, [new Filter("PROJ_PSPNR", FilterOperator.EQ,
+				sProject)]);
+			readPromise.then(function(rows) {
+				console.log("Project cost records loaded", rows.length);
+				this._renderData(rows);
 				this.getView().setBusy(false);
 				this.byId("refreshText").setText("Last Refreshed: " + new Date().toLocaleString());
-				this._setStatus(aRows.length ? "Loaded " + aRows.length + " records for project " + sProject +
-					". The descriptive WBS label is not present in this response; the table shows the backend WBS value." :
-					"No records found for project " + sProject + ".", aRows.length ? "Information" : "Warning");
-			}.bind(this)).catch(function(e) {
-				console.log("Project data request failed", e);
+				this._setStatus(rows.length ? "Loaded " + rows.length + " records for project " + sProject + "." :
+					"No records found for project " + sProject + ".", rows.length ? "Success" : "Warning");
+			}.bind(this)).catch(function(error) {
+				console.log("Project data load failed", error);
 				this.getView().setBusy(false);
-				this.getView().getModel("dash").setProperty("/emptyMessage", "Unable to load project data. Check the connection and try again.");
-				this._setStatus("Unable to load project data. Check the connection and try again.", "Error");
-				MessageToast.show("Unable to load project data.");
+				var details = this._readBackendError(error);
+				var noData = details.code === "CJ/011" || /project .+ does not exist/i.test(details.message);
+				var message = noData ? "No data available for project " + sProject + "." : "We couldn’t load project data. Please try again.";
+				this._rows = [];
+				this._allWbs = [];
+				this._visibleWbs = [];
+				this._filteredRows = [];
+				this._totals = null;
+				this.getView().getModel("dash").setData({
+					kpis: [],
+					wbsGroups: [],
+					projectChartData: [],
+					projectChartWidth: "100%",
+					savingChartTitle: "WBS-wise Saving (Top 10)",
+					hasData: false,
+					emptyMessage: message
+				});
+				this._setStatus(message, noData ? "Warning" : "Error");
+				if (!noData) {
+					MessageToast.show(message);
+				}
 			}.bind(this));
 		},
-		_setStatus: function(sText, sType) {
+		_isLocalDataMode: function(projectId) {
+			return projectId === "M-G-JSWR-25-010" || /(?:\?|&)dataSource=local(?:&|$)/i.test(window.location.search || "");
+		},
+		_readLocalData: function(projectId) {
+			console.log("Loading local OData-shaped sample data", projectId);
+			return new Promise(function(resolve, reject) {
+				jQuery.ajax({
+					url: sap.ui.require.toUrl("Z_Cost_Saving_Report/localService/ZCOST_SAVING_SRV/sample-data.json"),
+					dataType: "json",
+					success: function(payload) {
+						var rows = payload && payload.d && payload.d.results || [];
+						resolve(rows.filter(function(row) {
+							return row.PROJ_PSPNR === projectId;
+						}));
+					},
+					error: reject
+				});
+			});
+		},
+		_readBackendError: function(error) {
+			var body = error && (error.responseJSON || error.response && error.response.responseJSON);
+			if (!body && error && error.responseText) {
+				try {
+					body = JSON.parse(error.responseText);
+				} catch (parseError) {
+					console.log("Could not parse backend error response", parseError);
+				}
+			}
+			var details = body && body.error || {};
+			var message = typeof details.message === "string" ? details.message : details.message && details.message.value;
+			return {
+				code: details.code || "",
+				message: message || error && error.message || ""
+			};
+		},
+		_setStatus: function(text, type) {
 			var strip = this.byId("statusStrip");
-			strip.setText(sText);
-			strip.setType(sType);
+			strip.setText(text);
+			strip.setType(type);
 			strip.setVisible(true);
 		},
-		_readAll: function(oModel, aFilters) {
+		_readAll: function(model, filters) {
 			return new Promise(function(resolve, reject) {
 				var rows = [];
 
-				function read(sUrl) {
-					oModel.read(sUrl || "/ZCOST_SAVING_DDIC_TYPESet", {
-						filters: sUrl ? undefined : aFilters,
+				function read(nextUrl) {
+					model.read(nextUrl || "/ZCOST_SAVING_DDIC_TYPESet", {
+						filters: nextUrl ? undefined : filters,
 						success: function(data) {
 							rows = rows.concat(data.results || []);
 							data.__next ? read(data.__next) : resolve(rows);
@@ -124,102 +323,165 @@ sap.ui.define([
 		},
 		_renderData: function(rows) {
 			this._rows = rows;
-			var groups = Object.create(null),
-				sums = {
-					boq: 0,
-					po: 0,
-					availability: 0,
-					saving: 0
-				};
-			rows.forEach(function(r) {
-				var key = [r.BBU_SERIAL, r.BBU_VERSION, r.PROJ_PSPNR].join("|");
-				var g = groups[key] || (groups[key] = {
-					key: key,
-					serial: r.BBU_SERIAL,
-					version: r.BBU_VERSION,
-					project: r.PROJ_PSPNR,
-					wbs: r.WBS || "",
-					materials: [],
+			var map = Object.create(null);
+			rows.forEach(function(row) {
+				var wbs = row.WBS || "(No WBS)";
+				var group = map[wbs] || (map[wbs] = {
+					key: wbs,
+					wbs: wbs,
+					records: [],
+					serialKeys: Object.create(null),
+					materialsById: Object.create(null),
+					boqQty: 0,
+					poQty: 0,
 					boq: 0,
 					po: 0,
 					availability: 0,
 					saving: 0
 				});
-				g.materials.push(r);
-				g.boq += this._num(r.BOQ_AMOUNT);
-				g.po += this._num(r.POAMT);
-				g.availability += this._num(r.AVAILABILITY);
-				g.saving += this._num(r.SAVING);
-				sums.boq += this._num(r.BOQ_AMOUNT);
-				sums.po += this._num(r.POAMT);
-				sums.availability += this._num(r.AVAILABILITY);
-				sums.saving += this._num(r.SAVING);
+				group.records.push(row);
+				group.serialKeys[String(row.BBU_SERIAL) + "|" + String(row.BBU_VERSION)] = true;
+				group.boqQty += this._num(row.BOQ_QTY);
+				group.poQty += this._num(row.PO_QTY);
+				group.boq += this._num(row.BOQ_AMOUNT);
+				group.po += this._num(row.POAMT);
+				group.availability += this._num(row.AVAILABILITY);
+				group.saving += this._num(row.SAVING);
+				var materialId = row.SERVICE_OR_MATERIAL || "(No Material)";
+				var material = group.materialsById[materialId] || (group.materialsById[materialId] = {
+					label: materialId,
+					boqQty: 0,
+					poQty: 0,
+					boq: 0,
+					po: 0,
+					saving: 0,
+					availability: 0
+				});
+				material.boqQty += this._num(row.BOQ_QTY);
+				material.poQty += this._num(row.PO_QTY);
+				material.boq += this._num(row.BOQ_AMOUNT);
+				material.po += this._num(row.POAMT);
+				material.saving += this._num(row.SAVING);
+				material.availability += this._num(row.AVAILABILITY);
 			}, this);
-			var serials = Object.keys(groups).map(function(k) {
-				return groups[k];
+			this._allWbs = Object.keys(map).map(function(key) {
+				var group = map[key];
+				group.serialCount = Object.keys(group.serialKeys).length;
+				group.materialCount = group.records.length;
+				group.materials = Object.keys(group.materialsById).map(function(id) {
+					return group.materialsById[id];
+				});
+				return group;
 			});
-			this._serials = serials;
-			this._totals = sums;
-			this._publish(serials, sums);
+			this._visibleWbs = this._allWbs;
+			this._filteredRows = rows;
+			this._publish(this._visibleWbs, rows);
 		},
-		_publish: function(groups, sums) {
+		_chartViewportWidth: function() {
+			var viewport = this.byId("projectSavingViewport");
+			var dom = viewport && viewport.getDomRef();
+			var width = dom && dom.clientWidth;
+			if (!width) {
+				width = Math.floor(((window.innerWidth || 1200) - 72) / 2);
+			}
+			return Math.max(240, width);
+		},
+		_chartContentWidth: function(categoryCount, viewportWidth) {
+			var perCategory = 190;
+			return Math.max(viewportWidth, categoryCount * perCategory) + "px";
+		},
+		_chartLabel: function(value) {
+			var label = String(value || "");
+			var match = label.match(/^(?:WR-ME-M-)?([A-Z0-9]{2,6}-\d+)$/i);
+			if (match) {
+				return match[1];
+			}
+			return label.length > 18 ? label.slice(0, 15) + "…" : label;
+		},
+		_publish: function(groups, sourceRows) {
 			var model = this.getView().getModel("dash"),
-				rows = this._rows || [],
+				rows = sourceRows || [],
 				first = rows[0] || {},
 				self = this;
-			var serials = groups.map(function(g) {
-				var max = Math.max.apply(null, g.materials.map(function(r) {
-					return Math.max(self._num(r.BOQ_AMOUNT), self._num(r.POAMT));
-				}).concat([1]));
-				return Object.assign({}, g, {
-					materialCount: g.materials.length,
-					chartWidth: Math.max(520, g.materials.length * 92) + "px",
-					boqFmt: self._money(g.boq),
-					poFmt: self._money(g.po),
-					availabilityFmt: self._money(g.availability),
-					savingFmt: self._money(g.saving),
-					expanded: !!g.expanded,
-					materials: g.materials.map(function(r) {
-						return Object.assign({}, r, {
-							boqFmt: self._money(r.BOQ_AMOUNT),
-							poFmt: self._money(r.POAMT),
-							availabilityFmt: self._money(r.AVAILABILITY),
-							savingFmt: self._money(r.SAVING)
-						});
-					}),
-					compareBars: g.materials.map(function(r) {
-						return {
-							label: r.SERVICE_OR_MATERIAL,
-							boqHeight: Math.max(self._num(r.BOQ_AMOUNT) / max * 100, 2) + "%",
-							poHeight: Math.max(self._num(r.POAMT) / max * 100, 2) + "%",
-							boqShort: self._compact(r.BOQ_AMOUNT),
-							poShort: self._compact(r.POAMT)
-						};
-					}),
-					savingBars: g.materials.slice().sort(function(a, b) {
-						return self._num(b.SAVING) - self._num(a.SAVING);
-					}).map(function(r) {
-						var top = Math.max.apply(null, g.materials.map(function(x) {
-							return Math.abs(self._num(x.SAVING));
-						}).concat([1]));
-						return {
-							label: r.SERVICE_OR_MATERIAL,
-							amount: self._money(r.SAVING),
-							width: Math.max(2, Math.abs(self._num(r.SAVING)) / top * 100) + "%",
-							negative: self._num(r.SAVING) < 0,
-							state: self._num(r.SAVING) < 0 ? "Error" : "Success"
-						};
-					})
+			var viewportWidth = this._chartViewportWidth();
+			var displayGroups = groups.map(function(group) {
+				var materialData = group.materials.slice().sort(function(a, b) {
+					return b.saving - a.saving || a.label.localeCompare(b.label);
+				}).map(function(item) {
+					return {
+						label: self._chartLabel(item.label),
+						boqLakhs: item.boq / 100000,
+						poLakhs: item.po / 100000,
+						savingLakhs: item.saving / 100000,
+						savingType: item.saving < 0 ? "Negative" : "Positive"
+					};
+				});
+				var detailRows = group.records.map(function(row) {
+					return Object.assign({}, row, {
+						boqQtyFmt: self._quantity(row.BOQ_QTY),
+						poQtyFmt: self._quantity(row.PO_QTY),
+						boqRateFmt: self._rate(row.BOQ_RATE),
+						poRateFmt: self._rate(row.PO_RATE),
+						boqFmt: self._money(row.BOQ_AMOUNT),
+						poFmt: self._money(row.POAMT),
+						availabilityFmt: self._money(row.AVAILABILITY),
+						savingFmt: self._money(row.SAVING),
+						savingState: self._num(row.SAVING) < 0 ? "Error" : "Success"
+					});
+				});
+				return Object.assign({}, group, {
+					serialCount: Object.keys(group.serialKeys).length,
+					materialCount: group.records.length,
+					boqQtyFmt: self._quantity(group.boqQty),
+					poQtyFmt: self._quantity(group.poQty),
+					boqFmt: self._money(group.boq),
+					poFmt: self._money(group.po),
+					availabilityFmt: self._money(group.availability),
+					savingFmt: self._money(group.saving),
+					savingState: group.saving < 0 ? "Error" : "Success",
+					expanded: !!group.expanded,
+					chartWidth: self._chartContentWidth(materialData.length, viewportWidth),
+					materialChartData: materialData,
+					detailRows: detailRows,
+					subtotal: {
+						boqFmt: self._money(group.boq),
+						poFmt: self._money(group.po),
+						availabilityFmt: self._money(group.availability),
+						savingFmt: self._money(group.saving)
+					}
 				});
 			});
+			var totals = rows.reduce(function(sum, row) {
+				sum.boq += self._num(row.BOQ_AMOUNT);
+				sum.po += self._num(row.POAMT);
+				sum.availability += self._num(row.AVAILABILITY);
+				sum.saving += self._num(row.SAVING);
+				return sum;
+			}, {
+				boq: 0,
+				po: 0,
+				availability: 0,
+				saving: 0
+			});
 			var sorted = groups.slice().sort(function(a, b) {
-				return b.saving - a.saving;
+				return b.saving - a.saving || a.wbs.localeCompare(b.wbs);
+			});
+			var limit = this._topCount || 10;
+			var chartGroups = limit === "all" ? sorted : sorted.slice(0, limit);
+			var chartData = chartGroups.map(function(group) {
+				return {
+					label: group.wbs,
+					savingLakhs: group.saving / 100000,
+					savingType: group.saving < 0 ? "Negative" : "Positive",
+					boqLakhs: group.boq / 100000,
+					poLakhs: group.po / 100000
+				};
 			});
 			model.setData({
 				kpis: [{
-					label: "Serial Groups",
+					label: "Total WBS",
 					value: groups.length,
-					sub: "Serial / version / project",
+					sub: "Distinct WBS elements",
 					icon: "sap-icon://org-chart"
 				}, {
 					label: "Total Materials",
@@ -238,125 +500,163 @@ sap.ui.define([
 					icon: "sap-icon://database"
 				}, {
 					label: "BOQ Amount",
-					value: this._money(sums.boq),
+					value: this._money(totals.boq),
 					sub: "Material records",
 					icon: "sap-icon://document"
 				}, {
 					label: "PO Amount",
-					value: this._money(sums.po),
+					value: this._money(totals.po),
 					sub: "Material records",
 					icon: "sap-icon://cart"
 				}, {
 					label: "Availability",
-					value: this._money(sums.availability),
+					value: this._money(totals.availability),
 					sub: "Backend values",
 					icon: "sap-icon://shipping-status"
 				}, {
 					label: "Total Saving",
-					value: this._money(sums.saving),
+					value: this._money(totals.saving),
 					sub: "Backend values",
 					icon: "sap-icon://trend-up"
 				}],
-				serials: serials,
-				savingBars: sorted.slice(0, this._topCount || 10).map(function(g) {
-					return {
-						label: g.serial,
-						amount: this._money(g.saving),
-						width: Math.max(2, Math.abs(g.saving) / Math.max.apply(null, sorted.map(function(x) {
-							return Math.abs(x.saving);
-						}).concat([1])) * 100) + "%"
-					};
-				}, this),
-				compareBars: sorted.slice(0, 6).map(function(g) {
-					var max = Math.max(g.boq, g.po, 1);
-					return {
-						label: g.serial,
-						boqHeight: Math.max(g.boq / max * 100, 2) + "%",
-						poHeight: Math.max(g.po / max * 100, 2) + "%",
-						boqShort: this._compact(g.boq),
-						poShort: this._compact(g.po)
-					};
-				}, this),
-				distribution: {
-					items: [{
-						label: "BOQ Amount",
-						value: this._money(sums.boq)
-					}, {
-						label: "PO Amount",
-						value: this._money(sums.po)
-					}, {
-						label: "Availability",
-						value: this._money(sums.availability)
-					}, {
-						label: "Saving",
-						value: this._money(sums.saving)
-					}]
-				},
-				grandTotal: {
-					boqFmt: this._money(sums.boq),
-					poFmt: this._money(sums.po),
-					availabilityFmt: this._money(sums.availability),
-					savingFmt: this._money(sums.saving)
-				},
+				wbsGroups: displayGroups,
+				projectChartData: chartData,
+				projectChartWidth: this._chartContentWidth(chartData.length, viewportWidth),
+				savingChartTitle: "WBS-wise Saving (" + (limit === "all" ? "All" : "Top " + limit) + ")",
 				hasData: rows.length > 0,
 				emptyMessage: rows.length ? "" : "No data found for this project."
 			});
 		},
-		onToggleSerial: function(e) {
-			var context = e.getSource().getBindingContext("dash"),
-				path = context.getPath(),
-				expanded = context.getProperty("expanded");
-			this.getView().getModel("dash").setProperty(path + "/expanded", !expanded);
+		onToggleWbs: function(event) {
+			var context = event.getSource().getBindingContext("dash"),
+				index = Number(context.getPath().split("/").pop()),
+				group = this._visibleWbs[index];
+			if (group) {
+				group.expanded = !context.getProperty("expanded");
+				var original = (this._allWbs || []).find(function(item) {
+					return item.key === group.key;
+				});
+				if (original) {
+					original.expanded = group.expanded;
+				}
+				this.getView().getModel("dash").setProperty(context.getPath() + "/expanded", group.expanded);
+			}
 		},
 		onExpandAll: function() {
-			this.getView().getModel("dash").getProperty("/serials").forEach(function(g, i) {
-				this.getView().getModel("dash").setProperty("/serials/" + i + "/expanded", true);
-			}, this);
+			this._setExpansion(true);
 		},
 		onCollapseAll: function() {
-			this.getView().getModel("dash").getProperty("/serials").forEach(function(g, i) {
-				this.getView().getModel("dash").setProperty("/serials/" + i + "/expanded", false);
-			}, this);
+			this._setExpansion(false);
 		},
-		onTopChange: function(e) {
-			var groups = this._serials || [];
-			this._topCount = e.getParameter("selectedItem").getKey() === "all" ? groups.length : Number(e.getParameter("selectedItem").getKey());
-			if (this._totals) {
-				this._publish(groups, this._totals);
-			}
-		},
-		onSearch: function(e) {
-			var q = (e.getParameter("newValue") || "").toLowerCase(),
-				groups = this._serials || [];
-			var filtered = groups.filter(function(g) {
-				return !q || [g.serial, g.version, g.project, g.wbs].join(" ").toLowerCase().indexOf(q) >= 0 || g.materials.some(function(r) {
-					return (r.SERVICE_OR_MATERIAL || "").toLowerCase().indexOf(q) >= 0;
-				});
+		_setExpansion: function(expanded) {
+			var model = this.getView().getModel("dash");
+			(this._allWbs || []).forEach(function(group) {
+				group.expanded = expanded;
 			});
-			if (this._totals) {
-				this._publish(filtered, this._totals);
+			(this._visibleWbs || []).forEach(function(group, index) {
+				group.expanded = expanded;
+				model.setProperty("/wbsGroups/" + index + "/expanded", expanded);
+			});
+		},
+		onTopChange: function(event) {
+			this._topCount = event.getParameter("selectedItem").getKey() === "all" ? "all" : Number(event.getParameter("selectedItem").getKey());
+			if (this._rows && this._rows.length) {
+				this._publish(this._visibleWbs || this._allWbs, this._filteredRows || this._rows);
+			} else {
+				this.getView().getModel("dash").setProperty("/savingChartTitle", "WBS-wise Saving (" + (this._topCount === "all" ? "All" : "Top " +
+					this._topCount) + ")");
 			}
 		},
-		onMaterialSelect: function(e) {
-			var r = e.getSource().getBindingContext("dash").getObject();
-			MessageToast.show(r.SERVICE_OR_MATERIAL + " · BOQ " + this._money(r.BOQ_AMOUNT) + " · PO " + this._money(r.POAMT));
+		onSearch: function(event) {
+			var query = (event.getParameter("newValue") || "").toLowerCase();
+			this._visibleWbs = [];
+			(this._allWbs || []).forEach(function(group) {
+				if (!query || group.wbs.toLowerCase().indexOf(query) >= 0) {
+					this._visibleWbs.push(group);
+					return;
+				}
+				var matches = group.records.filter(function(row) {
+					return [row.BBU_SERIAL, row.BBU_VERSION, row.SERVICE_OR_MATERIAL].join(" ").toLowerCase().indexOf(query) >= 0;
+				});
+				if (matches.length) {
+					this._visibleWbs.push(this._filterWbsGroup(group, matches));
+				}
+			}, this);
+			this._filteredRows = [];
+			this._visibleWbs.forEach(function(group) {
+				this._filteredRows = this._filteredRows.concat(group.records);
+			}, this);
+			if (this._rows && this._rows.length) {
+				this._publish(this._visibleWbs, this._filteredRows);
+			}
+		},
+		_filterWbsGroup: function(source, records) {
+			var group = {
+				key: source.key,
+				wbs: source.wbs,
+				records: records,
+				serialKeys: Object.create(null),
+				materialsById: Object.create(null),
+				boqQty: 0,
+				poQty: 0,
+				boq: 0,
+				po: 0,
+				availability: 0,
+				saving: 0,
+				expanded: source.expanded
+			};
+			records.forEach(function(row) {
+				group.serialKeys[String(row.BBU_SERIAL) + "|" + String(row.BBU_VERSION)] = true;
+				group.boqQty += this._num(row.BOQ_QTY);
+				group.poQty += this._num(row.PO_QTY);
+				group.boq += this._num(row.BOQ_AMOUNT);
+				group.po += this._num(row.POAMT);
+				group.availability += this._num(row.AVAILABILITY);
+				group.saving += this._num(row.SAVING);
+				var id = row.SERVICE_OR_MATERIAL || "(No Material)",
+					item = group.materialsById[id] || (group.materialsById[id] = {
+						label: id,
+						boqQty: 0,
+						poQty: 0,
+						boq: 0,
+						po: 0,
+						saving: 0,
+						availability: 0
+					});
+				item.boqQty += this._num(row.BOQ_QTY);
+				item.poQty += this._num(row.PO_QTY);
+				item.boq += this._num(row.BOQ_AMOUNT);
+				item.po += this._num(row.POAMT);
+				item.saving += this._num(row.SAVING);
+				item.availability += this._num(row.AVAILABILITY);
+			}, this);
+			group.serialCount = Object.keys(group.serialKeys).length;
+			group.materialCount = records.length;
+			group.materials = Object.keys(group.materialsById).map(function(id) {
+				return group.materialsById[id];
+			});
+			return group;
+		},
+		onMaterialSelect: function(event) {
+			var row = event.getSource().getBindingContext("dash").getObject();
+			MessageToast.show(row.SERVICE_OR_MATERIAL + " · BOQ " + this._money(row.BOQ_AMOUNT) + " · PO " + this._money(row.POAMT));
 		},
 		onExport: function() {
 			var rows = this._rows || [],
-				head = ["Serial Number", "Version", "Project ID", "WBS", "Material / Service", "G/L Account", "BOQ Qty", "BOQ Rate", "BOQ Amount",
-					"PO Qty", "PO Rate", "PO Amount", "Availability", "Saving"
+				headings = ["WBS", "Serial Number", "Version", "Project ID", "Material / Service", "G/L Account", "BOQ Qty", "BOQ Rate",
+					"BOQ Amount", "PO Qty", "PO Rate", "PO Amount", "Availability", "Saving"
 				];
-			var lines = [head].concat(rows.map(function(r) {
-				return [r.BBU_SERIAL, r.BBU_VERSION, r.PROJ_PSPNR, r.WBS, r.SERVICE_OR_MATERIAL, r.GL_ACCOUNT, r.BOQ_QTY, r.BOQ_RATE, r.BOQ_AMOUNT,
-					r.PO_QTY, r.PO_RATE, r.POAMT, r.AVAILABILITY, r.SAVING
+			var lines = [headings].concat(rows.map(function(row) {
+				return [row.WBS, row.BBU_SERIAL, row.BBU_VERSION, row.PROJ_PSPNR, row.SERVICE_OR_MATERIAL, row.GL_ACCOUNT, row.BOQ_QTY, row.BOQ_RATE,
+					row.BOQ_AMOUNT, row.PO_QTY, row.PO_RATE, row.POAMT, row.AVAILABILITY, row.SAVING
 				];
 			}));
-			var csv = lines.map(function(a) {
-					return a.map(function(v) {
-						return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
-					}).join(",");
-				}).join("\r\n"),
-				blob = new Blob(["\ufeff" + csv], {
+			var csv = lines.map(function(line) {
+				return line.map(function(value) {
+					return '"' + String(value == null ? "" : value).replace(/"/g, '""') + '"';
+				}).join(",");
+			}).join("\r\n");
+			var blob = new Blob(["\ufeff" + csv], {
 					type: "text/csv;charset=utf-8;"
 				}),
 				url = URL.createObjectURL(blob),

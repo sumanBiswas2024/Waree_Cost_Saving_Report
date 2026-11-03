@@ -5,6 +5,9 @@ body,
 .sapMPage {
     min-height: 100%;
     background: #f3f7f4;
+    box-sizing: border-box;
+    max-width: 100%;
+    overflow-x: hidden;
 }
 
 .dashboardPage .sapMPageEnableScrolling {
@@ -15,6 +18,9 @@ body,
     padding: 0 14px 16px;
     gap: 10px;
     background: #f3f7f4;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 .topHeader {
@@ -123,6 +129,8 @@ body,
 .chartRow {
     gap: 12px;
     align-items: stretch;
+    width: 100%;
+    min-width: 0;
 }
 
 .chartCard {
@@ -131,6 +139,9 @@ body,
     border-radius: 13px;
     padding: 12px 15px;
     min-height: 205px;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
     box-shadow: 0 2px 8px #1c35250c;
     gap: 10px;
     overflow: hidden;
@@ -142,11 +153,39 @@ body,
 }
 
 .savingChart {
-    flex: 1.05 1 345px;
+    flex: 1 1 calc(50% - 6px);
+    width: calc(50% - 6px);
+    max-width: calc(50% - 6px);
 }
 
 .compareChart {
-    flex: 1.25 1 420px;
+    flex: 1 1 calc(50% - 6px);
+    width: calc(50% - 6px);
+    max-width: calc(50% - 6px);
+}
+.chartViewport {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+.suiteChartContainer {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 300px;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+.chartInner { flex: 0 0 auto; min-width: 0; max-width: none; }
+.chartCard .sapVizFrame,
+.chartCard .sapUiVizFrame {
+    height: 260px !important;
+    max-width: none;
 }
 
 .distChart {
@@ -361,43 +400,26 @@ body,
 }
 
 @media (max-width: 760px) {
-    .appShell {
-        padding: 0 8px 12px;
-        gap: 8px;
-    }
-    .topHeader {
-        margin: 0 -8px;
-        padding: 8px;
-    }
-    .headerRight .sapMText {
-        display: none;
-    }
-    .projectBar .sapMInputBase {
-        width: 100% !important;
-    }
-    .chartCard {
-        flex-basis: 100%;
-    }
-    .distContent {
-        justify-content: center;
-    }
-    .sectionHeader {
-        align-items: flex-start;
-    }
-    .sectionHeader .sapMTitle {
-        font-size: .95rem;
-    }
+    .appShell { padding: 0 8px 12px; gap: 8px; }
+    .topHeader { margin: 0 -8px; padding: 8px; }
+    .headerRight .sapMText { display: none; }
+    .projectBar .sapMInputBase { width: 100% !important; }
+    .chartCard { flex-basis: 100%; }
+    .savingChart, .compareChart, .materialChart { flex-basis: 100%; width: 100%; max-width: 100%; }
+    .distContent { justify-content: center; }
+    .sectionHeader { align-items: flex-start; }
+    .sectionHeader .sapMTitle { font-size: .95rem; }
 }
-
-.serialHeader,
-.serialParent {
+.wbsHeader,
+.wbsParent {
     display: grid !important;
     align-items: center;
-    min-width: 1120px;
-    grid-template-columns: 38px 90px 90px minmax(200px, 1.4fr) 95px repeat(4, minmax(145px, 1fr));
+    grid-template-columns: 34px minmax(160px, 1.7fr) 70px 80px 80px 80px repeat(4, minmax(100px, 1fr));
     column-gap: 4px;
+    min-width: 0;
+    box-sizing: border-box;
 }
-.serialHeader {
+.wbsHeader {
     background: #f5f8f6;
     border: 1px solid #dfe8e1;
     border-bottom: 0;
@@ -406,19 +428,19 @@ body,
     font-size: .7rem;
     color: #34483a;
 }
-.serialParent {
+.wbsParent {
     background: #e7f5ea;
     border: 1px solid #d7e9dc;
     border-radius: 8px;
     margin-bottom: 3px;
-    padding: 3px 5px;
-    min-height: 39px;
+    padding: 4px 5px;
+    min-height: 40px;
 }
-.serialParent:hover { background: #d9f0df; }
-.serialParent > .sapMBtn { flex: 0 0 38px; }
-.serialHeader > .sapMText,
-.serialParent > .sapMText,
-.serialParent > .sapMObjectNumber {
+.wbsParent:hover { background: #d9f0df; }
+.wbsParent > .sapMBtn { min-width: 0; width: 34px; }
+.wbsHeader > .sapMText,
+.wbsParent > .sapMText,
+.wbsParent > .sapMObjectNumber {
     min-width: 0;
     padding: 0 5px;
     overflow: hidden;
@@ -426,46 +448,45 @@ body,
     white-space: nowrap;
     font-size: .72rem;
 }
-.serialHeader > .sapMText:first-child { min-width: 38px; }
-.serialParent > .sapMText:nth-child(2) { font-weight: 700; }
-.serialParent > .sapMObjectNumber { text-align: right; }
-.serialList {
-    overflow-x: auto;
+.wbsParent > .sapMText:nth-child(2) { font-weight: 700; }
+.wbsParent > .sapMObjectNumber { text-align: right; }
+.wbsList {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible;
     background: #fff;
     border: 1px solid #dfe8e1;
     padding: 5px;
-    max-height: 690px;
-    overflow-y: auto;
+    max-height: none;
+    box-sizing: border-box;
 }
-.serialBlock { min-width: 1120px; }
-.serialDetail {
+.wbsBlock { min-width: 0; }
+.wbsDetail {
     margin: 0 4px 8px 42px;
     padding: 10px;
+    min-width: 0;
     background: #f7fbf8;
     border: 1px solid #d8e9dd;
     border-radius: 0 0 10px 10px;
     gap: 10px;
+    box-sizing: border-box;
 }
-.serialSummary { gap: 8px; }
-.serialSummary > .sapMVBox {
-    flex: 1 1 150px;
-    background: #fff;
-    border: 1px solid #e0e9e3;
-    border-radius: 8px;
-    padding: 8px 10px;
-    box-shadow: 0 1px 4px #203b2a0c;
+.wbsCharts { width: 100%; min-width: 0; gap: 10px; align-items: stretch; }
+.materialChart {
+    flex: 1 1 calc(50% - 5px);
+    width: calc(50% - 5px);
+    min-width: 0;
+    max-width: calc(50% - 5px);
+    min-height: 300px;
 }
-.serialSummary .sapMText { font-size: .7rem; color: #718078; }
-.serialSummary .sapMTitle { color: #145b35; font-size: .95rem; }
-.serialCharts { gap: 10px; align-items: stretch; }
-.materialChart { flex: 1 1 350px; min-width: 300px; min-height: 205px; }
-.materialChart .compareBars { height: 132px; }
-.materialChart .compareGroup { flex: 0 0 84px; min-width: 84px; }
-.materialChart .barPair { height: 95px; }
-.materialChart .savingBars { gap: 4px; }
-.materialChart .barRow { min-height: 26px; }
-.materialChart .barValue { overflow: visible; white-space: nowrap; }
-.materialScroll { min-width: 100%; }
+.materialScroll { width: 100%; min-width: 0; max-width: 100%; }
+.materialTable { min-width: 96rem; }
+.materialTable .sapMListTbl { min-width: 96rem; table-layout: fixed; }
+.materialTable .sapMListTblHeaderCell { background: #f4f8f5; }
+.materialTable .sapMListTblHeaderCell .sapMText { font-size: .7rem; font-weight: 700; white-space: normal; }
+.materialTable .sapMListTblCell .sapMText,
+.materialTable .sapMObjectNumberText { font-size: .72rem; }
 .subtotalRow {
     background: #e8f5ec;
     border-top: 1px solid #c9dfd0;
@@ -475,21 +496,6 @@ body,
     color: #145b35;
 }
 .subtotalRow > .sapMText { white-space: nowrap; }
-.grandTotal {
-    display: grid !important;
-    grid-template-columns: 38px 90px 90px minmax(200px, 1.4fr) 95px repeat(4, minmax(145px, 1fr));
-    min-width: 1120px;
-    background: linear-gradient(90deg, #14803e, #075a2d);
-    color: #fff;
-    border-radius: 9px;
-    padding: 10px 16px;
-    gap: 30px;
-    font-weight: 800;
-    box-shadow: 0 2px 5px #183b2633;
-}
-.grandTotal > .sapMText { white-space: nowrap; }
-.grandTotal > .sapMText:first-child { font-size: 1rem; grid-column: 1 / span 5; }
-.grandTotal > .sapMText:not(:first-child) { font-size: .85rem; }
 .emptyTableState {
     min-height: 74px;
     align-items: center;
@@ -502,3 +508,12 @@ body,
     font-size: .85rem;
 }
 .emptyTableState .sapUiIcon { color: #16834a; font-size: 1.2rem; }
+
+@media (max-width: 1020px) {
+    .wbsHeader, .wbsParent {
+        min-width: 940px;
+        grid-template-columns: 34px minmax(160px, 1.7fr) 70px 80px 80px 80px repeat(4, minmax(100px, 1fr));
+    }
+    .wbsList { overflow-x: auto; }
+    .wbsBlock { min-width: 940px; }
+}
