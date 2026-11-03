@@ -10,7 +10,29 @@ sap.ui.define([
 ], function(Controller, JSONModel, Filter, FilterOperator, MessageToast, NumberFormat, Locale, VizPopover) {
 	"use strict";
 
+	// Pixels reserved per category. The chart grows horizontally (inside a scroll container)
+	// only when categories x this value exceed the card width; otherwise it fills the card.
+	var WBS_CATEGORY_PX = 80;
+	var MATERIAL_CATEGORY_PX = 64;
+	var SAVING_TITLE = "WBS-wise Saving";
+
+	function emptyDash(message) {
+		return {
+			kpis: [],
+			wbsGroups: [],
+			projectChartData: [],
+			projectChartWidth: "0px",
+			savingChartTitle: SAVING_TITLE + " (Top 10)",
+			hasData: false,
+			emptyMessage: message
+		};
+	}
+
 	return Controller.extend("Z_Cost_Saving_Report.controller.View1", {
+
+		/* ============================================================ */
+		/* Lifecycle                                                    */
+		/* ============================================================ */
 		onInit: function() {
 			this.getView().setBusyIndicatorDelay(0);
 			var locale = new Locale("en-IN");
@@ -27,16 +49,20 @@ sap.ui.define([
 				groupingEnabled: true,
 				maxFractionDigits: 3
 			}, locale);
-			this.getView().setModel(new JSONModel({
-				kpis: [],
-				wbsGroups: [],
-				projectChartData: [],
-				projectChartWidth: "100%",
-				savingChartTitle: "WBS-wise Saving (Top 10)",
-				hasData: false,
-				emptyMessage: "No project data. Enter a project ID and choose Go."
-			}), "dash");
-			this.byId("statusStrip").setText("Enter a project ID and choose Go.");
+			this._topCount = 10;
+			this._resetState();
+			this.getView().setModel(new JSONModel(emptyDash("No project data. Enter a project ID and choose Go.")), "dash");
+			this._setStatus("Enter a project ID and choose Go.", "Information");
+		},
+
+		/* ============================================================ */
+		/* Small helpers                                                */
+		/* ============================================================ */
+		_resetState: function() {
+			this._rows = [];
+			this._allWbs = [];
+			this._visibleWbs = [];
+			this._filteredRows = [];
 		},
 		_num: function(value) {
 			return Number(value) || 0;
@@ -50,6 +76,19 @@ sap.ui.define([
 		_quantity: function(value) {
 			return this._quantityFormat.format(this._num(value));
 		},
+		_setStatus: function(text, type) {
+			var strip = this.byId("statusStrip");
+			strip.setText(text);
+			strip.setType(type);
+			strip.setVisible(true);
+		},
+		_dash: function() {
+			return this.getView().getModel("dash");
+		},
+
+		/* ============================================================ */
+		/* Toolbar actions                                              */
+		/* ============================================================ */
 		onGo: function() {
 			this._loadProject(this.byId("projectInput").getValue());
 		},
@@ -58,53 +97,30 @@ sap.ui.define([
 		},
 		onReset: function() {
 			this.byId("projectInput").setValue("");
-			this._rows = [];
-			this._allWbs = [];
-			this._visibleWbs = [];
-			this._totals = null;
-			this.getView().getModel("dash").setData({
-				kpis: [],
-				wbsGroups: [],
-				projectChartData: [],
-				projectChartWidth: "100%",
-				savingChartTitle: "WBS-wise Saving (Top 10)",
-				hasData: false,
-				emptyMessage: "No project data. Enter a project ID and choose Go."
-			});
+			this._resetState();
+			this._dash().setData(emptyDash("No project data. Enter a project ID and choose Go."));
 			this._setStatus("Enter a project ID and choose Go.", "Information");
 			this.byId("refreshText").setText("Last Refreshed: —");
 		},
 		onProjectHelp: function() {
 			MessageToast.show("Enter a project ID and choose Go.");
 		},
-		onAfterRendering: function() {
-			if (!this._resizeHandler) {
-				this._resizeHandler = this._onWindowResize.bind(this);
-				window.addEventListener("resize", this._resizeHandler);
-			}
-		},
-		onExit: function() {
-			if (this._resizeHandler) {
-				window.removeEventListener("resize", this._resizeHandler);
-			}
-		},
-		_onWindowResize: function() {
-			clearTimeout(this._resizeTimer);
-			this._resizeTimer = setTimeout(function() {
-				if (this._allWbs && this._allWbs.length) {
-					this._publish(this._visibleWbs || this._allWbs, this._filteredRows || this._rows);
-				}
-			}.bind(this), 120);
-		},
+
+		/* ============================================================ */
+		/* Charts                                                       */
+		/* ============================================================ */
+		// Width is handled purely by layout (CSS min-width:100% + px width from the model),
+		// so no DOM measuring / resize listeners are needed. This handler only applies the
+		// one-time viz configuration and connects the popover.
 		onChartRenderComplete: function(event) {
 			this._configureVizFrame(event.getSource());
 		},
 		_configureVizFrame: function(frame) {
-			this._sizeVizFrame(frame);
 			if (!frame.data("vizConfigured")) {
+				// set the flag first: setVizProperties triggers another renderComplete
+				frame.data("vizConfigured", true);
 				var isSaving = frame.hasStyleClass("savingViz") || frame.hasStyleClass("materialSavingViz");
-				var isComparison = frame.hasStyleClass("compareViz");
-				frame.setVizProperties({
+				var props = {
 					title: {
 						visible: false
 					},
@@ -113,17 +129,8 @@ sap.ui.define([
 					},
 					legendGroup: {
 						layout: {
-							position: "left"
+							position: "top"
 						}
-					},
-					plotArea: {
-						dataLabel: {
-							visible: true,
-							hideWhenOverlap: false,
-							position: "outside",
-							formatString: [isComparison ? "#,##0.#" : "#,##0.##"]
-						},
-						colorPalette: isSaving ? ["#16834A", "#D64545"] : ["#F39A22", "#16834A"]
 					},
 					valueAxis: {
 						title: {
@@ -135,71 +142,77 @@ sap.ui.define([
 						title: {
 							visible: false
 						},
-						maxSizeRatio: 0.42,
 						label: {
-							visible: true,
-							angle: 0,
-							rotation: "fixed"
+							visible: true
 						}
 					}
-				});
-				frame.data("vizConfigured", true);
+				};
+				if (isSaving) {
+					// stacked column: one bar per category, coloured by sign (no empty cluster slot)
+					props.plotArea = {
+						dataLabel: {
+							visible: true,
+							formatString: "#,##0.##"
+						},
+						dataPointStyle: {
+							rules: [{
+								dataContext: {
+									"Saving Type": "Positive"
+								},
+								properties: {
+									color: "#16834A"
+								},
+								displayName: "Saving"
+							}, {
+								dataContext: {
+									"Saving Type": "Negative"
+								},
+								properties: {
+									color: "#D64545"
+								},
+								displayName: "Overrun"
+							}]
+						}
+					};
+				} else {
+					props.plotArea = {
+						dataLabel: {
+							visible: true,
+							hideWhenOverlap: true,
+							position: "outside",
+							formatString: "#,##0.#"
+						},
+						colorPalette: ["#F39A22", "#16834A"]
+					};
+				}
+				frame.setVizProperties(props);
 			}
 			if (!frame.data("popoverConnected")) {
+				frame.data("popoverConnected", true);
 				var popover = new VizPopover({});
 				this.getView().addDependent(popover);
 				popover.connect(frame.getVizUid());
-				frame.data("popoverConnected", true);
 			}
 		},
-		_sizeVizFrame: function(frame) {
-			var viewport = frame.getDomRef(),
-				node = viewport;
-			while (node && !(node.classList && node.classList.contains("chartViewport"))) {
-				node = node.parentElement;
-			}
-			var viewportWidth = node && node.clientWidth || this._chartViewportWidth();
-			var configuredWidth = parseFloat(frame.getWidth());
-			var chartWidth = frame.getWidth() && frame.getWidth().indexOf("%") < 0 && configuredWidth > viewportWidth ? configuredWidth :
-				viewportWidth;
-			if (!chartWidth || !isFinite(chartWidth)) {
-				return;
-			}
-			var chartContainer = frame.getParent();
-			while (chartContainer && !chartContainer.hasStyleClass("suiteChartContainer")) {
-				chartContainer = chartContainer.getParent();
-			}
-			var isFullScreen = chartContainer && chartContainer.getFullScreen();
-			var baseHeight = frame.data("baseHeight") || frame.getHeight();
-			frame.data("baseHeight", baseHeight);
-			if (isFullScreen) {
-				var fullHeight = Math.max(360, (window.innerHeight || 800) - 110);
-				if (node) {
-					node.style.height = fullHeight + "px";
-				}
-				frame.setHeight(Math.max(300, fullHeight - 40) + "px");
-			} else {
-				if (node) {
-					node.style.height = "310px";
-				}
-				if (frame.getHeight() !== baseHeight) {
-					frame.setHeight(baseHeight);
-				}
-			}
-			var inner = viewport;
-			while (inner && !(inner.classList && inner.classList.contains("chartInner"))) {
-				inner = inner.parentElement;
-			}
-			[inner, viewport].forEach(function(dom) {
-				if (!dom) {
-					return;
-				}
-				dom.style.width = chartWidth + "px";
-				dom.style.minWidth = chartWidth + "px";
-				dom.style.maxWidth = "none";
-				dom.style.flex = "0 0 " + chartWidth + "px";
-			});
+		_chartContentWidth: function(categoryCount, perCategory) {
+			return Math.max(1, categoryCount) * perCategory + "px";
 		},
+		_chartLabel: function(value) {
+			var label = String(value || "");
+			var match = label.match(/^(?:WR-ME-M-)?([A-Z0-9]{2,6}-\d+)$/i);
+			if (match) {
+				return match[1].split("-").pop();
+			}
+			var segments = label.split("-");
+			if (segments.length > 4) {
+				return segments.slice(-2).join("-");
+			}
+			return label.length > 18 ? label.slice(0, 15) + "…" : label;
+		},
+
+		/* ============================================================ */
+		/* Data loading                                                 */
+		/* ============================================================ */
 		_loadProject: function(projectId) {
 			var sProject = (projectId || "").trim();
 			if (!sProject) {
@@ -209,54 +222,31 @@ sap.ui.define([
 			var localDataMode = this._isLocalDataMode(sProject);
 			var oModel = this.getOwnerComponent().getModel();
 			if (!localDataMode && !oModel) {
-				console.log("Project service model is unavailable");
 				this._setStatus("The project data service is unavailable.", "Error");
 				return;
 			}
-			this._rows = [];
-			this._allWbs = [];
-			this._visibleWbs = [];
-			this._totals = null;
-			this.getView().getModel("dash").setData({
-				kpis: [],
-				wbsGroups: [],
-				projectChartData: [],
-				projectChartWidth: "100%",
-				savingChartTitle: "WBS-wise Saving (Top 10)",
-				hasData: false,
-				emptyMessage: "Loading project data…"
-			});
+			this._resetState();
+			this._dash().setData(emptyDash("Loading project data…"));
 			this._setStatus("Loading project " + sProject + "…", "Information");
 			this.getView().setBusy(true);
-			var readPromise = localDataMode ? this._readLocalData(sProject) : this._readAll(oModel, [new Filter("PROJ_PSPNR", FilterOperator.EQ,
-				sProject)]);
+
+			var readPromise = localDataMode ? this._readLocalData(sProject) :
+				this._readAll(oModel, [new Filter("PROJ_PSPNR", FilterOperator.EQ, sProject)]);
+
 			readPromise.then(function(rows) {
-				console.log("Project cost records loaded", rows.length);
 				this._renderData(rows);
 				this.getView().setBusy(false);
 				this.byId("refreshText").setText("Last Refreshed: " + new Date().toLocaleString());
 				this._setStatus(rows.length ? "Loaded " + rows.length + " records for project " + sProject + "." :
 					"No records found for project " + sProject + ".", rows.length ? "Success" : "Warning");
 			}.bind(this)).catch(function(error) {
-				console.log("Project data load failed", error);
 				this.getView().setBusy(false);
 				var details = this._readBackendError(error);
 				var noData = details.code === "CJ/011" || /project .+ does not exist/i.test(details.message);
-				var message = noData ? "No data available for project " + sProject + "." : "We couldn’t load project data. Please try again.";
-				this._rows = [];
-				this._allWbs = [];
-				this._visibleWbs = [];
-				this._filteredRows = [];
-				this._totals = null;
-				this.getView().getModel("dash").setData({
-					kpis: [],
-					wbsGroups: [],
-					projectChartData: [],
-					projectChartWidth: "100%",
-					savingChartTitle: "WBS-wise Saving (Top 10)",
-					hasData: false,
-					emptyMessage: message
-				});
+				var message = noData ? "No data available for project " + sProject + "." :
+					"We couldn’t load project data. Please try again.";
+				this._resetState();
+				this._dash().setData(emptyDash(message));
 				this._setStatus(message, noData ? "Warning" : "Error");
 				if (!noData) {
 					MessageToast.show(message);
@@ -267,7 +257,6 @@ sap.ui.define([
 			return projectId === "M-G-JSWR-25-010" || /(?:\?|&)dataSource=local(?:&|$)/i.test(window.location.search || "");
 		},
 		_readLocalData: function(projectId) {
-			console.log("Loading local OData-shaped sample data", projectId);
 			return new Promise(function(resolve, reject) {
 				jQuery.ajax({
 					url: sap.ui.require.toUrl("Z_Cost_Saving_Report/localService/ZCOST_SAVING_SRV/sample-data.json"),
@@ -288,7 +277,7 @@ sap.ui.define([
 				try {
 					body = JSON.parse(error.responseText);
 				} catch (parseError) {
-					console.log("Could not parse backend error response", parseError);
+					body = null;
 				}
 			}
 			var details = body && body.error || {};
@@ -298,22 +287,28 @@ sap.ui.define([
 				message: message || error && error.message || ""
 			};
 		},
-		_setStatus: function(text, type) {
-			var strip = this.byId("statusStrip");
-			strip.setText(text);
-			strip.setType(type);
-			strip.setVisible(true);
-		},
+		// Server-driven paging: follows __next using $skiptoken (or $skip as fallback) instead of
+		// passing the absolute __next URL back into model.read(), which breaks on many gateways.
 		_readAll: function(model, filters) {
 			return new Promise(function(resolve, reject) {
 				var rows = [];
 
-				function read(nextUrl) {
-					model.read(nextUrl || "/ZCOST_SAVING_DDIC_TYPESet", {
-						filters: nextUrl ? undefined : filters,
+				function read(urlParameters) {
+					model.read("/ZCOST_SAVING_DDIC_TYPESet", {
+						filters: filters,
+						urlParameters: urlParameters || {},
 						success: function(data) {
 							rows = rows.concat(data.results || []);
-							data.__next ? read(data.__next) : resolve(rows);
+							if (!data.__next) {
+								resolve(rows);
+								return;
+							}
+							var token = /[?&]\$skiptoken=([^&]+)/.exec(data.__next);
+							read(token ? {
+								"$skiptoken": decodeURIComponent(token[1])
+							} : {
+								"$skip": rows.length
+							});
 						},
 						error: reject
 					});
@@ -321,25 +316,27 @@ sap.ui.define([
 				read();
 			});
 		},
-		_renderData: function(rows) {
-			this._rows = rows;
-			var map = Object.create(null);
-			rows.forEach(function(row) {
-				var wbs = row.WBS || "(No WBS)";
-				var group = map[wbs] || (map[wbs] = {
-					key: wbs,
-					wbs: wbs,
-					records: [],
-					serialKeys: Object.create(null),
-					materialsById: Object.create(null),
-					boqQty: 0,
-					poQty: 0,
-					boq: 0,
-					po: 0,
-					availability: 0,
-					saving: 0
-				});
-				group.records.push(row);
+
+		/* ============================================================ */
+		/* Aggregation                                                  */
+		/* ============================================================ */
+		// One place builds a WBS group (used for full load AND for search-filtered groups).
+		_aggregate: function(wbs, records, expanded) {
+			var group = {
+				key: wbs,
+				wbs: wbs,
+				records: records,
+				serialKeys: Object.create(null),
+				materialsById: Object.create(null),
+				boqQty: 0,
+				poQty: 0,
+				boq: 0,
+				po: 0,
+				availability: 0,
+				saving: 0,
+				expanded: !!expanded
+			};
+			records.forEach(function(row) {
 				group.serialKeys[String(row.BBU_SERIAL) + "|" + String(row.BBU_VERSION)] = true;
 				group.boqQty += this._num(row.BOQ_QTY);
 				group.poQty += this._num(row.PO_QTY);
@@ -347,9 +344,9 @@ sap.ui.define([
 				group.po += this._num(row.POAMT);
 				group.availability += this._num(row.AVAILABILITY);
 				group.saving += this._num(row.SAVING);
-				var materialId = row.SERVICE_OR_MATERIAL || "(No Material)";
-				var material = group.materialsById[materialId] || (group.materialsById[materialId] = {
-					label: materialId,
+				var id = row.SERVICE_OR_MATERIAL || "(No Material)";
+				var item = group.materialsById[id] || (group.materialsById[id] = {
+					label: id,
 					boqQty: 0,
 					poQty: 0,
 					boq: 0,
@@ -357,53 +354,48 @@ sap.ui.define([
 					saving: 0,
 					availability: 0
 				});
-				material.boqQty += this._num(row.BOQ_QTY);
-				material.poQty += this._num(row.PO_QTY);
-				material.boq += this._num(row.BOQ_AMOUNT);
-				material.po += this._num(row.POAMT);
-				material.saving += this._num(row.SAVING);
-				material.availability += this._num(row.AVAILABILITY);
+				item.boqQty += this._num(row.BOQ_QTY);
+				item.poQty += this._num(row.PO_QTY);
+				item.boq += this._num(row.BOQ_AMOUNT);
+				item.po += this._num(row.POAMT);
+				item.saving += this._num(row.SAVING);
+				item.availability += this._num(row.AVAILABILITY);
 			}, this);
-			this._allWbs = Object.keys(map).map(function(key) {
-				var group = map[key];
-				group.serialCount = Object.keys(group.serialKeys).length;
-				group.materialCount = group.records.length;
-				group.materials = Object.keys(group.materialsById).map(function(id) {
-					return group.materialsById[id];
-				});
-				return group;
+			group.serialCount = Object.keys(group.serialKeys).length;
+			group.materialCount = records.length;
+			group.materials = Object.keys(group.materialsById).map(function(id) {
+				return group.materialsById[id];
 			});
+			return group;
+		},
+		_renderData: function(rows) {
+			this._rows = rows;
+			var byWbs = Object.create(null),
+				order = [];
+			rows.forEach(function(row) {
+				var wbs = row.WBS || "(No WBS)";
+				if (!byWbs[wbs]) {
+					byWbs[wbs] = [];
+					order.push(wbs);
+				}
+				byWbs[wbs].push(row);
+			});
+			this._allWbs = order.map(function(wbs) {
+				return this._aggregate(wbs, byWbs[wbs], false);
+			}, this);
 			this._visibleWbs = this._allWbs;
 			this._filteredRows = rows;
 			this._publish(this._visibleWbs, rows);
 		},
-		_chartViewportWidth: function() {
-			var viewport = this.byId("projectSavingViewport");
-			var dom = viewport && viewport.getDomRef();
-			var width = dom && dom.clientWidth;
-			if (!width) {
-				width = Math.floor(((window.innerWidth || 1200) - 72) / 2);
-			}
-			return Math.max(240, width);
-		},
-		_chartContentWidth: function(categoryCount, viewportWidth) {
-			var perCategory = 190;
-			return Math.max(viewportWidth, categoryCount * perCategory) + "px";
-		},
-		_chartLabel: function(value) {
-			var label = String(value || "");
-			var match = label.match(/^(?:WR-ME-M-)?([A-Z0-9]{2,6}-\d+)$/i);
-			if (match) {
-				return match[1];
-			}
-			return label.length > 18 ? label.slice(0, 15) + "…" : label;
-		},
+
+		/* ============================================================ */
+		/* Publish to the JSON model                                    */
+		/* ============================================================ */
 		_publish: function(groups, sourceRows) {
-			var model = this.getView().getModel("dash"),
+			var self = this,
 				rows = sourceRows || [],
-				first = rows[0] || {},
-				self = this;
-			var viewportWidth = this._chartViewportWidth();
+				first = rows[0] || {};
+
 			var displayGroups = groups.map(function(group) {
 				var materialData = group.materials.slice().sort(function(a, b) {
 					return b.saving - a.saving || a.label.localeCompare(b.label);
@@ -430,8 +422,6 @@ sap.ui.define([
 					});
 				});
 				return Object.assign({}, group, {
-					serialCount: Object.keys(group.serialKeys).length,
-					materialCount: group.records.length,
 					boqQtyFmt: self._quantity(group.boqQty),
 					poQtyFmt: self._quantity(group.poQty),
 					boqFmt: self._money(group.boq),
@@ -439,18 +429,12 @@ sap.ui.define([
 					availabilityFmt: self._money(group.availability),
 					savingFmt: self._money(group.saving),
 					savingState: group.saving < 0 ? "Error" : "Success",
-					expanded: !!group.expanded,
-					chartWidth: self._chartContentWidth(materialData.length, viewportWidth),
+					chartWidth: self._chartContentWidth(materialData.length, MATERIAL_CATEGORY_PX),
 					materialChartData: materialData,
-					detailRows: detailRows,
-					subtotal: {
-						boqFmt: self._money(group.boq),
-						poFmt: self._money(group.po),
-						availabilityFmt: self._money(group.availability),
-						savingFmt: self._money(group.saving)
-					}
+					detailRows: detailRows
 				});
 			});
+
 			var totals = rows.reduce(function(sum, row) {
 				sum.boq += self._num(row.BOQ_AMOUNT);
 				sum.po += self._num(row.POAMT);
@@ -463,6 +447,7 @@ sap.ui.define([
 				availability: 0,
 				saving: 0
 			});
+
 			var sorted = groups.slice().sort(function(a, b) {
 				return b.saving - a.saving || a.wbs.localeCompare(b.wbs);
 			});
@@ -477,7 +462,8 @@ sap.ui.define([
 					poLakhs: group.po / 100000
 				};
 			});
-			model.setData({
+
+			this._dash().setData({
 				kpis: [{
 					label: "Total WBS",
 					value: groups.length,
@@ -521,25 +507,30 @@ sap.ui.define([
 				}],
 				wbsGroups: displayGroups,
 				projectChartData: chartData,
-				projectChartWidth: this._chartContentWidth(chartData.length, viewportWidth),
-				savingChartTitle: "WBS-wise Saving (" + (limit === "all" ? "All" : "Top " + limit) + ")",
+				projectChartWidth: this._chartContentWidth(chartData.length, WBS_CATEGORY_PX),
+				savingChartTitle: SAVING_TITLE + " (" + (limit === "all" ? "All" : "Top " + limit) + ")",
 				hasData: rows.length > 0,
 				emptyMessage: rows.length ? "" : "No data found for this project."
 			});
 		},
+
+		/* ============================================================ */
+		/* WBS list interactions                                        */
+		/* ============================================================ */
 		onToggleWbs: function(event) {
 			var context = event.getSource().getBindingContext("dash"),
 				index = Number(context.getPath().split("/").pop()),
 				group = this._visibleWbs[index];
 			if (group) {
 				group.expanded = !context.getProperty("expanded");
+				// _visibleWbs may hold filtered copies; keep the master list in sync
 				var original = (this._allWbs || []).find(function(item) {
 					return item.key === group.key;
 				});
 				if (original) {
 					original.expanded = group.expanded;
 				}
-				this.getView().getModel("dash").setProperty(context.getPath() + "/expanded", group.expanded);
+				this._dash().setProperty(context.getPath() + "/expanded", group.expanded);
 			}
 		},
 		onExpandAll: function() {
@@ -549,7 +540,7 @@ sap.ui.define([
 			this._setExpansion(false);
 		},
 		_setExpansion: function(expanded) {
-			var model = this.getView().getModel("dash");
+			var model = this._dash();
 			(this._allWbs || []).forEach(function(group) {
 				group.expanded = expanded;
 			});
@@ -559,12 +550,13 @@ sap.ui.define([
 			});
 		},
 		onTopChange: function(event) {
-			this._topCount = event.getParameter("selectedItem").getKey() === "all" ? "all" : Number(event.getParameter("selectedItem").getKey());
+			var key = event.getParameter("selectedItem").getKey();
+			this._topCount = key === "all" ? "all" : Number(key);
 			if (this._rows && this._rows.length) {
 				this._publish(this._visibleWbs || this._allWbs, this._filteredRows || this._rows);
 			} else {
-				this.getView().getModel("dash").setProperty("/savingChartTitle", "WBS-wise Saving (" + (this._topCount === "all" ? "All" : "Top " +
-					this._topCount) + ")");
+				this._dash().setProperty("/savingChartTitle", SAVING_TITLE + " (" + (this._topCount === "all" ? "All" : "Top " + this._topCount) +
+					")");
 			}
 		},
 		onSearch: function(event) {
@@ -579,7 +571,7 @@ sap.ui.define([
 					return [row.BBU_SERIAL, row.BBU_VERSION, row.SERVICE_OR_MATERIAL].join(" ").toLowerCase().indexOf(query) >= 0;
 				});
 				if (matches.length) {
-					this._visibleWbs.push(this._filterWbsGroup(group, matches));
+					this._visibleWbs.push(this._aggregate(group.wbs, matches, group.expanded));
 				}
 			}, this);
 			this._filteredRows = [];
@@ -590,62 +582,23 @@ sap.ui.define([
 				this._publish(this._visibleWbs, this._filteredRows);
 			}
 		},
-		_filterWbsGroup: function(source, records) {
-			var group = {
-				key: source.key,
-				wbs: source.wbs,
-				records: records,
-				serialKeys: Object.create(null),
-				materialsById: Object.create(null),
-				boqQty: 0,
-				poQty: 0,
-				boq: 0,
-				po: 0,
-				availability: 0,
-				saving: 0,
-				expanded: source.expanded
-			};
-			records.forEach(function(row) {
-				group.serialKeys[String(row.BBU_SERIAL) + "|" + String(row.BBU_VERSION)] = true;
-				group.boqQty += this._num(row.BOQ_QTY);
-				group.poQty += this._num(row.PO_QTY);
-				group.boq += this._num(row.BOQ_AMOUNT);
-				group.po += this._num(row.POAMT);
-				group.availability += this._num(row.AVAILABILITY);
-				group.saving += this._num(row.SAVING);
-				var id = row.SERVICE_OR_MATERIAL || "(No Material)",
-					item = group.materialsById[id] || (group.materialsById[id] = {
-						label: id,
-						boqQty: 0,
-						poQty: 0,
-						boq: 0,
-						po: 0,
-						saving: 0,
-						availability: 0
-					});
-				item.boqQty += this._num(row.BOQ_QTY);
-				item.poQty += this._num(row.PO_QTY);
-				item.boq += this._num(row.BOQ_AMOUNT);
-				item.po += this._num(row.POAMT);
-				item.saving += this._num(row.SAVING);
-				item.availability += this._num(row.AVAILABILITY);
-			}, this);
-			group.serialCount = Object.keys(group.serialKeys).length;
-			group.materialCount = records.length;
-			group.materials = Object.keys(group.materialsById).map(function(id) {
-				return group.materialsById[id];
-			});
-			return group;
-		},
 		onMaterialSelect: function(event) {
 			var row = event.getSource().getBindingContext("dash").getObject();
 			MessageToast.show(row.SERVICE_OR_MATERIAL + " · BOQ " + this._money(row.BOQ_AMOUNT) + " · PO " + this._money(row.POAMT));
 		},
+
+		/* ============================================================ */
+		/* Export                                                       */
+		/* ============================================================ */
 		onExport: function() {
-			var rows = this._rows || [],
-				headings = ["WBS", "Serial Number", "Version", "Project ID", "Material / Service", "G/L Account", "BOQ Qty", "BOQ Rate",
-					"BOQ Amount", "PO Qty", "PO Rate", "PO Amount", "Availability", "Saving"
-				];
+			var rows = this._rows || [];
+			if (!rows.length) {
+				MessageToast.show("Nothing to export.");
+				return;
+			}
+			var headings = ["WBS", "Serial Number", "Version", "Project ID", "Material / Service", "G/L Account", "BOQ Qty", "BOQ Rate",
+				"BOQ Amount", "PO Qty", "PO Rate", "PO Amount", "Availability", "Saving"
+			];
 			var lines = [headings].concat(rows.map(function(row) {
 				return [row.WBS, row.BBU_SERIAL, row.BBU_VERSION, row.PROJ_PSPNR, row.SERVICE_OR_MATERIAL, row.GL_ACCOUNT, row.BOQ_QTY, row.BOQ_RATE,
 					row.BOQ_AMOUNT, row.PO_QTY, row.PO_RATE, row.POAMT, row.AVAILABILITY, row.SAVING
@@ -663,8 +616,12 @@ sap.ui.define([
 				link = document.createElement("a");
 			link.href = url;
 			link.download = "project-cost-saving.csv";
+			document.body.appendChild(link);
 			link.click();
-			URL.revokeObjectURL(url);
+			document.body.removeChild(link);
+			setTimeout(function() {
+				URL.revokeObjectURL(url);
+			}, 1000);
 		}
 	});
 });

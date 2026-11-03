@@ -6,44 +6,83 @@
 			<Page showHeader="false" class="dashboardPage">
 				<content>
 					<VBox class="appShell">
+
+						<!-- Header -->
 						<HBox class="topHeader" alignItems="Center" justifyContent="SpaceBetween">
-							<HBox alignItems="Center" class="brand">
-								<VBox><Title text="Project Cost Saving Analysis" level="H1"/><Text text="Project-wise BOQ, PO &amp; Cost Saving Overview"/></VBox>
+							<VBox>
+								<Title text="Project Cost Saving Analysis" level="H1"/>
+								<Text text="Project-wise BOQ, PO &amp; Cost Saving Overview"/>
+							</VBox>
+							<HBox alignItems="Center" class="headerRight">
+								<Text id="refreshText" text="Last Refreshed: —"/>
+								<Button icon="sap-icon://refresh" type="Transparent" press="onRefresh"/>
 							</HBox>
-							<HBox alignItems="Center" class="headerRight"><Text id="refreshText" text="Last Refreshed: —"/><Button icon="sap-icon://refresh" type="Transparent" press="onRefresh"/></HBox>
 						</HBox>
+
+						<!-- Project bar -->
 						<HBox class="projectBar" alignItems="Center" wrap="Wrap">
-							<Label text="Project"/><Input id="projectInput" placeholder="Enter Project ID" width="22rem" showValueHelp="true" valueHelpRequest="onProjectHelp" submit="onGo"/><Button text="Go" type="Emphasized" press="onGo"/><Button text="Reset" press="onReset"/><ToolbarSpacer/><Button icon="sap-icon://excel-attachment" text="Export" press="onExport"/>
+							<Label text="Project"/>
+							<Input id="projectInput" placeholder="Enter Project ID" width="22rem" showValueHelp="true" valueHelpRequest="onProjectHelp" submit="onGo"/>
+							<Button text="Go" type="Emphasized" press="onGo"/>
+							<Button text="Reset" press="onReset"/>
+							<VBox><layoutData><FlexItemData growFactor="1"/></layoutData></VBox>
+							<Button icon="sap-icon://excel-attachment" text="Export" press="onExport"/>
 						</HBox>
+
 						<MessageStrip id="statusStrip" text="Enter a project ID and choose Go." type="Information" showIcon="true" visible="true"/>
+
+						<!-- KPIs -->
 						<HBox class="kpiRow" wrap="Wrap" items="{dash>/kpis}">
 							<items>
 								<VBox class="kpiCard">
-									<HBox alignItems="Center" justifyContent="SpaceBetween"><Text text="{dash>label}"/><core:Icon xmlns:core="sap.ui.core" src="{dash>icon}"/></HBox><Title text="{dash>value}" level="H2"/><Text text="{dash>sub}"/></VBox>
+									<HBox alignItems="Center" justifyContent="SpaceBetween">
+										<Text text="{dash>label}"/>
+										<core:Icon src="{dash>icon}"/>
+									</HBox>
+									<Title text="{dash>value}" level="H2"/>
+									<Text text="{dash>sub}"/>
+								</VBox>
 							</items>
 						</HBox>
+
+						<!-- Project level charts -->
 						<HBox class="chartRow" wrap="Wrap">
 							<VBox class="chartCard savingChart">
-								<HBox justifyContent="SpaceBetween"><Title text="{dash>/savingChartTitle}" level="H3"/>
+								<HBox justifyContent="SpaceBetween" alignItems="Center">
+									<Title text="{dash>/savingChartTitle}" level="H3"/>
 									<Select selectedKey="10" change="onTopChange">
-										<items><core:Item key="10" text="Top 10"/><core:Item key="20" text="Top 20"/><core:Item key="all" text="All"/></items>
+										<items>
+											<core:Item key="10" text="Top 10"/>
+											<core:Item key="20" text="Top 20"/>
+											<core:Item key="all" text="All"/>
+										</items>
 									</Select>
 								</HBox>
-								<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false" autoAdjustHeight="false">
+								<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false"
+									autoAdjustHeight="false">
 									<suite:content>
 										<suite:ChartContainerContent icon="sap-icon://vertical-bar-chart" title="WBS Saving">
 											<suite:content>
-												<ScrollContainer id="projectSavingViewport" class="chartViewport" horizontal="true" vertical="false" width="100%" height="310px">
-													<HBox class="chartInner" width="{dash>/projectChartWidth}">
-														<viz:VizFrame class="savingViz" vizType="bar" width="{dash>/projectChartWidth}" height="260px" uiConfig="{applicationSet:'fiori'}"
+												<ScrollContainer class="chartViewport" horizontal="true" vertical="false" width="100%" height="100%">
+													<HBox class="chartInner" width="{dash>/projectChartWidth}" height="100%">
+														<viz:VizFrame class="savingViz" vizType="stacked_column" width="100%" height="100%" uiConfig="{applicationSet:'fiori'}"
 															renderComplete="onChartRenderComplete">
 															<viz:dataset>
 																<viz.data:FlattenedDataset data="{dash>/projectChartData}">
-																	<viz.data:dimensions><viz.data:DimensionDefinition name="WBS" value="{dash>label}"/><viz.data:DimensionDefinition name="Saving Type" value="{dash>savingType}"/></viz.data:dimensions>
-																	<viz.data:measures><viz.data:MeasureDefinition name="Saving (₹ L)" value="{dash>savingLakhs}"/></viz.data:measures>
+																	<viz.data:dimensions>
+																		<viz.data:DimensionDefinition name="WBS" value="{dash>label}"/>
+																		<viz.data:DimensionDefinition name="Saving Type" value="{dash>savingType}"/>
+																	</viz.data:dimensions>
+																	<viz.data:measures>
+																		<viz.data:MeasureDefinition name="Saving (₹ L)" value="{dash>savingLakhs}"/>
+																	</viz.data:measures>
 																</viz.data:FlattenedDataset>
 															</viz:dataset>
-															<viz:feeds><viz.feeds:FeedItem uid="categoryAxis" type="Dimension" values="WBS"/><viz.feeds:FeedItem uid="color" type="Dimension" values="Saving Type"/><viz.feeds:FeedItem uid="valueAxis" type="Measure" values="Saving (₹ L)"/></viz:feeds>
+															<viz:feeds>
+																<viz.feeds:FeedItem uid="categoryAxis" type="Dimension" values="WBS"/>
+																<viz.feeds:FeedItem uid="color" type="Dimension" values="Saving Type"/>
+																<viz.feeds:FeedItem uid="valueAxis" type="Measure" values="Saving (₹ L)"/>
+															</viz:feeds>
 														</viz:VizFrame>
 													</HBox>
 												</ScrollContainer>
@@ -52,22 +91,33 @@
 									</suite:content>
 								</suite:ChartContainer>
 							</VBox>
-							<VBox class="chartCard compareChart"><Title text="BOQ vs PO Amount (WBS Wise)" level="H3"/>
-								<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false" autoAdjustHeight="false">
+
+							<VBox class="chartCard compareChart">
+								<HBox alignItems="Center"><Title text="BOQ vs PO Amount (WBS Wise)" level="H3"/></HBox>
+								<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false"
+									autoAdjustHeight="false">
 									<suite:content>
 										<suite:ChartContainerContent icon="sap-icon://bar-chart" title="WBS BOQ vs PO">
 											<suite:content>
-												<ScrollContainer class="chartViewport" horizontal="true" vertical="false" width="100%" height="310px">
-													<HBox class="chartInner" width="{dash>/projectChartWidth}">
-														<viz:VizFrame class="compareViz" vizType="column" width="{dash>/projectChartWidth}" height="260px" uiConfig="{applicationSet:'fiori'}"
+												<ScrollContainer class="chartViewport" horizontal="true" vertical="false" width="100%" height="100%">
+													<HBox class="chartInner" width="{dash>/projectChartWidth}" height="100%">
+														<viz:VizFrame class="compareViz" vizType="column" width="100%" height="100%" uiConfig="{applicationSet:'fiori'}"
 															renderComplete="onChartRenderComplete">
 															<viz:dataset>
 																<viz.data:FlattenedDataset data="{dash>/projectChartData}">
-																	<viz.data:dimensions><viz.data:DimensionDefinition name="WBS" value="{dash>label}"/></viz.data:dimensions>
-																	<viz.data:measures><viz.data:MeasureDefinition name="BOQ (₹ L)" value="{dash>boqLakhs}"/><viz.data:MeasureDefinition name="PO (₹ L)" value="{dash>poLakhs}"/></viz.data:measures>
+																	<viz.data:dimensions>
+																		<viz.data:DimensionDefinition name="WBS" value="{dash>label}"/>
+																	</viz.data:dimensions>
+																	<viz.data:measures>
+																		<viz.data:MeasureDefinition name="BOQ (₹ L)" value="{dash>boqLakhs}"/>
+																		<viz.data:MeasureDefinition name="PO (₹ L)" value="{dash>poLakhs}"/>
+																	</viz.data:measures>
 																</viz.data:FlattenedDataset>
 															</viz:dataset>
-															<viz:feeds><viz.feeds:FeedItem uid="categoryAxis" type="Dimension" values="WBS"/><viz.feeds:FeedItem uid="valueAxis" type="Measure" values="BOQ (₹ L),PO (₹ L)"/></viz:feeds>
+															<viz:feeds>
+																<viz.feeds:FeedItem uid="categoryAxis" type="Dimension" values="WBS"/>
+																<viz.feeds:FeedItem uid="valueAxis" type="Measure" values="BOQ (₹ L),PO (₹ L)"/>
+															</viz:feeds>
 														</viz:VizFrame>
 													</HBox>
 												</ScrollContainer>
@@ -77,37 +127,83 @@
 								</suite:ChartContainer>
 							</VBox>
 						</HBox>
+
+						<!-- Section header -->
 						<HBox class="sectionHeader" alignItems="Center">
-							<VBox><Title text="Project Details – WBS &amp; Material Wise" level="H2"/><Text text="One parent row per WBS; expanded tables retain each serial-level backend record"/></VBox><ToolbarSpacer/><SearchField width="18rem" placeholder="Search WBS / Serial / Material..." liveChange="onSearch"/><Button text="Expand All" icon="sap-icon://open-command-field" press="onExpandAll"/><Button text="Collapse All" icon="sap-icon://close-command-field" press="onCollapseAll"/>
+							<VBox>
+								<Title text="Project Details – WBS &amp; Material Wise" level="H2"/>
+								<Text text="One parent row per WBS; expanded tables retain each serial-level backend record"/>
+							</VBox>
+							<VBox><layoutData><FlexItemData growFactor="1"/></layoutData></VBox>
+							<SearchField width="18rem" placeholder="Search WBS / Serial / Material..." liveChange="onSearch"/>
+							<Button text="Expand All" icon="sap-icon://open-command-field" press="onExpandAll"/>
+							<Button text="Collapse All" icon="sap-icon://close-command-field" press="onCollapseAll"/>
 						</HBox>
-						<HBox class="wbsHeader" visible="{dash>/hasData}"><Text text=""/><Text text="WBS"/><Text text="Serial Count"/><Text text="Material Count"/><Text text="BOQ Qty"/><Text text="PO Qty"/><Text text="BOQ Amount (₹ L)"/><Text text="PO Amount (₹ L)"/><Text text="Availability (₹ L)"/><Text text="Saving (₹ L)"/></HBox>
-						<VBox class="emptyTableState" visible="{= !${dash>/hasData}}"><core:Icon src="sap-icon://database"/><Text text="{dash>/emptyMessage}"/></VBox>
+
+						<HBox class="wbsHeader" visible="{dash>/hasData}">
+							<Text text=""/>
+							<Text text="WBS"/>
+							<Text text="Serial Count"/>
+							<Text text="Material Count"/>
+							<Text text="BOQ Qty"/>
+							<Text text="PO Qty"/>
+							<Text text="BOQ Amount (₹ L)"/>
+							<Text text="PO Amount (₹ L)"/>
+							<Text text="Availability (₹ L)"/>
+							<Text text="Saving (₹ L)"/>
+						</HBox>
+
+						<VBox class="emptyTableState" visible="{= !${dash>/hasData}}">
+							<core:Icon src="sap-icon://database"/>
+							<Text text="{dash>/emptyMessage}"/>
+						</VBox>
+
+						<!-- WBS list -->
 						<VBox id="wbsList" class="wbsList" visible="{dash>/hasData}" items="{dash>/wbsGroups}">
 							<items>
 								<VBox class="wbsBlock">
 									<HBox class="wbsParent" alignItems="Center">
 										<Button type="Transparent" icon="{= ${dash>expanded} ? 'sap-icon://navigation-down-arrow' : 'sap-icon://navigation-right-arrow'}"
 											press="onToggleWbs"/>
-										<Text text="{dash>wbs}" tooltip="{dash>wbs}"/><Text text="{dash>serialCount}"/><Text text="{dash>materialCount}"/><Text text="{dash>boqQtyFmt}"/><Text text="{dash>poQtyFmt}"/><Text text="{dash>boqFmt}"/><Text text="{dash>poFmt}"/><Text text="{dash>availabilityFmt}"/><ObjectNumber number="{dash>savingFmt}" state="{dash>savingState}"/>
+										<Text text="{dash>wbs}" tooltip="{dash>wbs}"/>
+										<Text text="{dash>serialCount}"/>
+										<Text text="{dash>materialCount}"/>
+										<Text text="{dash>boqQtyFmt}"/>
+										<Text text="{dash>poQtyFmt}"/>
+										<Text text="{dash>boqFmt}"/>
+										<Text text="{dash>poFmt}"/>
+										<Text text="{dash>availabilityFmt}"/>
+										<ObjectNumber number="{dash>savingFmt}" state="{dash>savingState}"/>
 									</HBox>
+
 									<VBox visible="{dash>expanded}" class="wbsDetail">
-										<HBox class="wbsCharts" wrap="Wrap">
-											<VBox class="chartCard materialChart"><Title text="Material-wise BOQ vs PO (₹ L)" level="H3"/>
-												<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false" autoAdjustHeight="false">
+										<HBox class="wbsCharts" wrap="NoWrap">
+											<VBox class="chartCard materialChart">
+												<Title text="Material-wise BOQ vs PO (₹ L)" level="H3"/>
+												<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false"
+													autoAdjustHeight="false">
 													<suite:content>
 														<suite:ChartContainerContent icon="sap-icon://bar-chart" title="Material BOQ and PO">
 															<suite:content>
-																<ScrollContainer class="chartViewport" horizontal="true" vertical="false" width="100%" height="310px">
-																	<HBox class="chartInner" width="{dash>chartWidth}">
-																		<viz:VizFrame class="compareViz" vizType="column" width="{dash>chartWidth}" height="270px" uiConfig="{applicationSet:'fiori'}"
+																<ScrollContainer class="chartViewport" horizontal="true" vertical="false" width="100%" height="100%">
+																	<HBox class="chartInner" width="{dash>chartWidth}" height="100%">
+																		<viz:VizFrame class="compareViz" vizType="column" width="100%" height="100%" uiConfig="{applicationSet:'fiori'}"
 																			renderComplete="onChartRenderComplete">
 																			<viz:dataset>
 																				<viz.data:FlattenedDataset data="{dash>materialChartData}">
-																					<viz.data:dimensions><viz.data:DimensionDefinition name="Material" value="{dash>label}"/></viz.data:dimensions>
-																					<viz.data:measures><viz.data:MeasureDefinition name="BOQ (₹ L)" value="{dash>boqLakhs}"/><viz.data:MeasureDefinition name="PO (₹ L)" value="{dash>poLakhs}"/></viz.data:measures>
+																					<viz.data:dimensions>
+																						<viz.data:DimensionDefinition name="Material" value="{dash>label}"/>
+																					</viz.data:dimensions>
+																					<viz.data:measures>
+																						<viz.data:MeasureDefinition name="BOQ (₹ L)" value="{dash>boqLakhs}"/>
+																						<viz.data:MeasureDefinition name="PO (₹ L)" value="{dash>poLakhs}"/>
+																					</viz.data:measures>
 																				</viz.data:FlattenedDataset>
 																			</viz:dataset>
-																			<viz:feeds><viz.feeds:FeedItem uid="categoryAxis" type="Dimension" values="Material"/><viz.feeds:FeedItem uid="valueAxis" type="Measure" values="BOQ (₹ L),PO (₹ L)"/></viz:feeds>
+																			<viz:feeds>
+																				<viz.feeds:FeedItem uid="categoryAxis" type="Dimension" values="Material"/>
+																				<viz.feeds:FeedItem uid="valueAxis" type="Measure" values="BOQ (₹ L),PO (₹ L)"/>
+																			</viz:feeds>
 																		</viz:VizFrame>
 																	</HBox>
 																</ScrollContainer>
@@ -116,22 +212,34 @@
 													</suite:content>
 												</suite:ChartContainer>
 											</VBox>
-											<VBox class="chartCard materialChart"><Title text="Material-wise Saving (₹ L)" level="H3"/>
-												<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false" autoAdjustHeight="false">
+
+											<VBox class="chartCard materialChart">
+												<Title text="Material-wise Saving (₹ L)" level="H3"/>
+												<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false"
+													autoAdjustHeight="false">
 													<suite:content>
-														<suite:ChartContainerContent icon="sap-icon://bar-chart" title="Material Saving">
+														<suite:ChartContainerContent icon="sap-icon://vertical-bar-chart" title="Material Saving">
 															<suite:content>
-																<ScrollContainer class="chartViewport" horizontal="true" vertical="false" width="100%" height="310px">
-																	<HBox class="chartInner" width="{dash>chartWidth}">
-																		<viz:VizFrame class="materialSavingViz" vizType="bar" width="{dash>chartWidth}" height="270px" uiConfig="{applicationSet:'fiori'}"
-																			renderComplete="onChartRenderComplete">
+																<ScrollContainer class="chartViewport" horizontal="true" vertical="false" width="100%" height="100%">
+																	<HBox class="chartInner" width="{dash>chartWidth}" height="100%">
+																		<viz:VizFrame class="materialSavingViz" vizType="stacked_column" width="100%" height="100%"
+																			uiConfig="{applicationSet:'fiori'}" renderComplete="onChartRenderComplete">
 																			<viz:dataset>
 																				<viz.data:FlattenedDataset data="{dash>materialChartData}">
-																					<viz.data:dimensions><viz.data:DimensionDefinition name="Material" value="{dash>label}"/><viz.data:DimensionDefinition name="Saving Type" value="{dash>savingType}"/></viz.data:dimensions>
-																					<viz.data:measures><viz.data:MeasureDefinition name="Saving (₹ L)" value="{dash>savingLakhs}"/></viz.data:measures>
+																					<viz.data:dimensions>
+																						<viz.data:DimensionDefinition name="Material" value="{dash>label}"/>
+																						<viz.data:DimensionDefinition name="Saving Type" value="{dash>savingType}"/>
+																					</viz.data:dimensions>
+																					<viz.data:measures>
+																						<viz.data:MeasureDefinition name="Saving (₹ L)" value="{dash>savingLakhs}"/>
+																					</viz.data:measures>
 																				</viz.data:FlattenedDataset>
 																			</viz:dataset>
-																			<viz:feeds><viz.feeds:FeedItem uid="categoryAxis" type="Dimension" values="Material"/><viz.feeds:FeedItem uid="color" type="Dimension" values="Saving Type"/><viz.feeds:FeedItem uid="valueAxis" type="Measure" values="Saving (₹ L)"/></viz:feeds>
+																			<viz:feeds>
+																				<viz.feeds:FeedItem uid="categoryAxis" type="Dimension" values="Material"/>
+																				<viz.feeds:FeedItem uid="color" type="Dimension" values="Saving Type"/>
+																				<viz.feeds:FeedItem uid="valueAxis" type="Measure" values="Saving (₹ L)"/>
+																			</viz:feeds>
 																		</viz:VizFrame>
 																	</HBox>
 																</ScrollContainer>
@@ -141,31 +249,57 @@
 												</suite:ChartContainer>
 											</VBox>
 										</HBox>
-										<HBox class="tableHeader"><Title text="Material Comparison- " level="H3"/><ToolbarSpacer/><Text text="WBS: {dash>wbs}" tooltip="{dash>wbs}"/></HBox>
-										<ScrollContainer horizontal="true" vertical="true" height="auto" class="materialScroll">
-											<Table class="materialTable" items="{dash>detailRows}" fixedLayout="true">
+
+										<HBox class="tableHeader" alignItems="Center">
+											<Title text="Material Comparison" level="H3"/>
+											<VBox><layoutData><FlexItemData growFactor="1"/></layoutData></VBox>
+											<Text text="WBS: {dash>wbs}" tooltip="{dash>wbs}"/>
+										</HBox>
+
+										<!-- Vertical scroll only; sticky header stays fixed while rows scroll. Columns use % widths so everything fits without a horizontal scrollbar. -->
+										<ScrollContainer horizontal="false" vertical="true" class="materialScroll">
+											<Table class="materialTable" items="{dash>detailRows}" fixedLayout="true" sticky="ColumnHeaders">
 												<columns>
-													<Column width="6rem"><Text text="Serial"/></Column>
-													<Column width="5rem"><Text text="Version"/></Column>
-													<Column width="15rem"><Text text="Material / Service"/></Column>
-													<Column width="7rem"><Text text="G/L Account"/></Column>
-													<Column width="7rem" hAlign="End"><Text text="BOQ Qty"/></Column>
-													<Column width="8rem" hAlign="End"><Text text="BOQ Rate (₹/unit)"/></Column>
-													<Column width="9rem" hAlign="End"><Text text="BOQ Amount (₹ L)"/></Column>
-													<Column width="7rem" hAlign="End"><Text text="PO Qty"/></Column>
-													<Column width="8rem" hAlign="End"><Text text="PO Rate (₹/unit)"/></Column>
-													<Column width="9rem" hAlign="End"><Text text="PO Amount (₹ L)"/></Column>
-													<Column width="9rem" hAlign="End"><Text text="Availability (₹ L)"/></Column>
-													<Column width="8rem" hAlign="End"><Text text="Saving (₹ L)"/></Column>
+													<Column width="7%"><Text text="Serial"/></Column>
+													<Column width="5%"><Text text="Version"/></Column>
+													<Column width="15%"><Text text="Material / Service"/></Column>
+													<Column width="8%" hAlign="End"><Text text="BOQ Qty"/></Column>
+													<Column width="9%" hAlign="End"><Text text="BOQ Rate (₹/unit)"/></Column>
+													<Column width="10%" hAlign="End"><Text text="BOQ Amount (₹ L)"/></Column>
+													<Column width="8%" hAlign="End"><Text text="PO Qty"/></Column>
+													<Column width="9%" hAlign="End"><Text text="PO Rate (₹/unit)"/></Column>
+													<Column width="10%" hAlign="End"><Text text="PO Amount (₹ L)"/></Column>
+													<Column width="10%" hAlign="End"><Text text="Availability (₹ L)"/></Column>
+													<Column width="9%" hAlign="End"><Text text="Saving (₹ L)"/></Column>
 												</columns>
 												<items>
 													<ColumnListItem type="Active" press="onMaterialSelect">
-														<cells><Text text="{dash>BBU_SERIAL}"/><Text text="{dash>BBU_VERSION}"/><Text text="{dash>SERVICE_OR_MATERIAL}" tooltip="{dash>SERVICE_OR_MATERIAL}"/><Text text="{dash>GL_ACCOUNT}"/><Text text="{dash>boqQtyFmt}"/><Text text="{dash>boqRateFmt}"/><Text text="{dash>boqFmt}"/><Text text="{dash>poQtyFmt}"/><Text text="{dash>poRateFmt}"/><Text text="{dash>poFmt}"/><Text text="{dash>availabilityFmt}"/><ObjectNumber number="{dash>savingFmt}" state="{dash>savingState}"/></cells>
+														<cells>
+															<Text text="{dash>BBU_SERIAL}"/>
+															<Text text="{dash>BBU_VERSION}"/>
+															<Text text="{dash>SERVICE_OR_MATERIAL}" tooltip="{dash>SERVICE_OR_MATERIAL}"/>
+															<Text text="{dash>boqQtyFmt}"/>
+															<Text text="{dash>boqRateFmt}"/>
+															<Text text="{dash>boqFmt}"/>
+															<Text text="{dash>poQtyFmt}"/>
+															<Text text="{dash>poRateFmt}"/>
+															<Text text="{dash>poFmt}"/>
+															<Text text="{dash>availabilityFmt}"/>
+															<ObjectNumber number="{dash>savingFmt}" state="{dash>savingState}"/>
+														</cells>
 													</ColumnListItem>
 												</items>
 											</Table>
 										</ScrollContainer>
-										<HBox class="subtotalRow"><Text text="WBS Subtotal – {dash>wbs}"/><ToolbarSpacer/><Text text="{dash>boqFmt}"/><Text text="{dash>poFmt}"/><Text text="{dash>availabilityFmt}"/><Text text="{dash>savingFmt}"/></HBox>
+
+										<HBox class="subtotalRow" alignItems="Center">
+											<Text text="WBS Subtotal – {dash>wbs}"/>
+											<VBox><layoutData><FlexItemData growFactor="1"/></layoutData></VBox>
+											<Text text="BOQ {dash>boqFmt}"/>
+											<Text text="PO {dash>poFmt}"/>
+											<Text text="Avail. {dash>availabilityFmt}"/>
+											<Text text="Saving {dash>savingFmt}"/>
+										</HBox>
 									</VBox>
 								</VBox>
 							</items>
