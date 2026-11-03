@@ -1,1 +1,385 @@
-/* Enter your custom styles here */
+html,
+body,
+#content,
+.sapMApp,
+.sapMPage {
+    min-height: 100%;
+    background: #f3f7f4;
+}
+
+.dashboardPage .sapMPageEnableScrolling {
+    background: #f3f7f4;
+}
+
+.appShell {
+    padding: 0 14px 16px;
+    gap: 10px;
+    background: #f3f7f4;
+}
+
+.topHeader {
+    margin: 0 -14px;
+    padding: 8px 20px;
+    min-height: 58px;
+    color: #fff;
+    background: linear-gradient(105deg, #08763a, #10934d 62%, #086433);
+    box-shadow: 0 2px 8px #12352230;
+}
+
+.topHeader .sapMTitle,
+.topHeader .sapMText,
+.topHeader .sapMBtnIcon {
+    color: #fff !important;
+}
+
+.topHeader .sapMTitle {
+    font-size: 1.35rem;
+    line-height: 1.7rem;
+}
+
+.topHeader .sapMText {
+    font-size: .76rem;
+}
+
+.brand {
+    gap: 13px;
+}
+
+.brand > .sapMBtn {
+    color: white;
+}
+
+.sapLogo {
+    font-weight: 800;
+    font-size: 1.15rem;
+    color: #0874b9;
+    background: #fff;
+    padding: 5px 9px;
+    transform: skew(-8deg);
+}
+
+.headerRight {
+    gap: 12px;
+}
+
+.projectBar {
+    background: #fff;
+    border: 1px solid #e0e9e3;
+    border-radius: 12px;
+    padding: 8px 14px;
+    gap: 10px;
+    box-shadow: 0 2px 8px #203b2a0a;
+}
+
+.projectBar .sapMLabel {
+    font-weight: 700;
+}
+
+.projectBar .sapMInputBaseContentWrapper {
+    border-radius: 8px;
+}
+
+.projectBar .sapMBtnInner {
+    border-radius: 8px;
+}
+
+.kpiRow {
+    gap: 9px;
+}
+
+.kpiCard {
+    flex: 1 1 175px;
+    min-width: 160px;
+    padding: 12px 14px;
+    background: #fff;
+    border: 1px solid #e0e9e3;
+    border-radius: 12px;
+    box-shadow: 0 2px 7px #203b2a12;
+    gap: 5px;
+}
+
+.kpiCard .sapMText:first-child {
+    font-size: .77rem;
+    font-weight: 700;
+    color: #46534b;
+}
+
+.kpiCard .sapUiIcon {
+    color: #16834a;
+    font-size: 1.15rem;
+}
+
+.kpiCard .sapMTitle {
+    color: #26352b;
+    font-size: 1.18rem;
+    white-space: nowrap;
+}
+
+.kpiCard .sapMText:last-child {
+    color: #718078;
+    font-size: .68rem;
+}
+
+.chartRow {
+    gap: 12px;
+    align-items: stretch;
+}
+
+.chartCard {
+    background: #fff;
+    border: 1px solid #dfe9e2;
+    border-radius: 13px;
+    padding: 12px 15px;
+    min-height: 205px;
+    box-shadow: 0 2px 8px #1c35250c;
+    gap: 10px;
+    overflow: hidden;
+}
+
+.chartCard .sapMTitle {
+    font-size: 1rem;
+    color: #20372a;
+}
+
+.savingChart {
+    flex: 1.05 1 345px;
+}
+
+.compareChart {
+    flex: 1.25 1 420px;
+}
+
+.distChart {
+    flex: 1 1 300px;
+}
+
+.barRow {
+    gap: 8px;
+    min-height: 25px;
+}
+
+.barLabel {
+    width: 75px;
+    font-size: .72rem;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.barTrack {
+    height: 13px;
+    flex: 1;
+    background: #eef3ef;
+    border-radius: 0 6px 6px 0;
+    overflow: hidden;
+}
+
+.greenBar {
+    height: 100%;
+    background: linear-gradient(90deg, #21a354, #08753a);
+    border-radius: 0 6px 6px 0;
+}
+
+.barValue {
+    width: 95px;
+    font-size: .72rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.compareBars {
+    height: 120px;
+    align-items: stretch;
+    overflow-x: auto;
+}
+
+.compareGroup {
+    min-width: 55px;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.compareGroup > .sapMText {
+    font-size: .65rem;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.barPair {
+    height: 90px;
+    gap: 4px;
+    align-items: end;
+    border-bottom: 1px solid #dce6df;
+}
+
+.column {
+    width: 16px;
+    min-height: 3px;
+    border-radius: 3px 3px 0 0;
+}
+
+.boqColumn {
+    background: #f39a22;
+}
+
+.poColumn {
+    background: #168c49;
+}
+
+.legend {
+    justify-content: center;
+    gap: 18px;
+    font-size: .73rem;
+}
+
+.legend > .sapMText:first-child {
+    color: #d67b00;
+}
+
+.legend > .sapMText:last-child {
+    color: #16834a;
+}
+
+.legendSmall {
+    color: #69776e;
+}
+
+.distLegend {
+    flex: 1;
+    gap: 12px;
+    font-size: .78rem;
+    padding: 12px 4px;
+}
+
+.amountLine {
+    border-bottom: 1px solid #edf2ee;
+    padding: 5px 2px;
+}
+
+.amountLine > .sapMText:last-child {
+    font-weight: 700;
+    color: #1f3427;
+}
+
+.chartNote {
+    font-size: .65rem;
+    color: #718078;
+    padding-top: 4px;
+}
+
+.sectionHeader {
+    background: #fff;
+    border: 1px solid #e0e9e3;
+    border-radius: 12px 12px 0 0;
+    padding: 9px 13px;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.sectionHeader .sapMTitle {
+    color: #145b35;
+    font-size: 1.1rem;
+}
+
+.sectionHeader .sapMText {
+    color: #718078;
+    font-size: .7rem;
+}
+
+.sectionHeader .sapMBtnInner {
+    border-radius: 7px;
+}
+
+.wbsTree {
+    margin-top: -10px;
+    border: 1px solid #e0e9e3;
+    border-top: 0;
+    background: #fff;
+    max-height: 260px;
+    overflow: auto;
+}
+
+.wbsTree .sapMLIB {
+    min-height: 2.5rem;
+}
+
+.wbsTree .sapMSTI {
+    font-weight: 600;
+}
+
+.wbsTree .sapMSTIInfo {
+    color: #16834a;
+}
+
+.tableHeader {
+    background: #fff;
+    border: 1px solid #e0e9e3;
+    padding: 8px 12px;
+}
+
+.tableHeader .sapMTitle {
+    font-size: 1rem;
+    color: #145b35;
+}
+
+.tableHeader .sapMText {
+    font-size: .75rem;
+    font-weight: 600;
+    color: #536359;
+}
+
+.materialScroll {
+    background: white;
+    border: 1px solid #e0e9e3;
+    border-radius: 0 0 11px 11px;
+}
+
+.materialScroll .sapMListTbl {
+    min-width: 1040px;
+}
+
+.materialScroll .sapMListTblHeaderCell {
+    background: #f4f8f5;
+}
+
+.materialScroll .sapMListTblHeaderCell .sapMText {
+    font-size: .72rem;
+    font-weight: 700;
+}
+
+.materialScroll .sapMListTblCell .sapMText,
+.materialScroll .sapMObjectNumberText {
+    font-size: .72rem;
+}
+
+@media (max-width: 760px) {
+    .appShell {
+        padding: 0 8px 12px;
+        gap: 8px;
+    }
+    .topHeader {
+        margin: 0 -8px;
+        padding: 8px;
+    }
+    .headerRight .sapMText {
+        display: none;
+    }
+    .projectBar .sapMInputBase {
+        width: 100% !important;
+    }
+    .chartCard {
+        flex-basis: 100%;
+    }
+    .distContent {
+        justify-content: center;
+    }
+    .sectionHeader {
+        align-items: flex-start;
+    }
+    .sectionHeader .sapMTitle {
+        font-size: .95rem;
+    }
+}

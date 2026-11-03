@@ -1,9 +1,82 @@
-<mvc:View controllerName="Z_Cost_Saving_Report.controller.View1" xmlns:html="http://www.w3.org/1999/xhtml" xmlns:mvc="sap.ui.core.mvc"
-	displayBlock="true" xmlns="sap.m">
+<mvc:View controllerName="Z_Cost_Saving_Report.controller.View1" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" displayBlock="true">
 	<App>
 		<pages>
-			<Page title="{i18n>title}">
-				<content></content>
+			<Page showHeader="false" class="dashboardPage">
+				<content>
+					<VBox class="appShell">
+						<HBox class="topHeader" alignItems="Center" justifyContent="SpaceBetween">
+							<HBox alignItems="Center" class="brand">
+								<VBox><Title text="Project Cost Saving Analysis" level="H1"/><Text text="Project-wise BOQ, PO &amp; Cost Saving Overview"/></VBox>
+							</HBox>
+							<HBox alignItems="Center" class="headerRight"><Text id="refreshText" text="Last Refreshed: —"/><Button icon="sap-icon://refresh" type="Transparent" press="onRefresh"/></HBox>
+						</HBox>
+						<HBox class="projectBar" alignItems="Center" wrap="Wrap">
+							<Label text="Project"/><Input id="projectInput" placeholder="Enter Project ID" width="22rem" showValueHelp="true" valueHelpRequest="onProjectHelp" submit="onGo"/><Button text="Go" type="Emphasized" press="onGo"/><Button text="Reset" press="onReset"/><ToolbarSpacer/><Button icon="sap-icon://excel-attachment" text="Export" press="onExport"/>
+						</HBox>
+						<MessageStrip id="statusStrip" text="Enter a project ID and choose Go." type="Information" showIcon="true" visible="true"/>
+						<HBox class="kpiRow" wrap="Wrap" items="{dash>/kpis}">
+							<items>
+								<VBox class="kpiCard">
+									<HBox alignItems="Center" justifyContent="SpaceBetween"><Text text="{dash>label}"/><core:Icon xmlns:core="sap.ui.core" src="{dash>icon}"/></HBox><Title text="{dash>value}" level="H2"/><Text text="{dash>sub}"/></VBox>
+							</items>
+						</HBox>
+						<HBox class="chartRow" wrap="Wrap">
+							<VBox class="chartCard savingChart">
+								<HBox justifyContent="SpaceBetween"><Title text="WBS-wise Saving (Top 10)" level="H3"/>
+									<Select selectedKey="10" change="onTopChange">
+										<items><core:Item xmlns:core="sap.ui.core" key="10" text="Top 10"/><core:Item xmlns:core="sap.ui.core" key="20" text="Top 20"/><core:Item xmlns:core="sap.ui.core" key="all" text="All"/></items>
+									</Select>
+								</HBox>
+								<VBox items="{dash>/savingBars}">
+									<items>
+										<HBox class="barRow" alignItems="Center"><Text text="{dash>label}" class="barLabel"/>
+											<VBox class="barTrack"><HBox class="greenBar" width="{dash>width}"/></VBox><Text text="{dash>amount}" class="barValue"/></HBox>
+									</items>
+								</VBox>
+							</VBox>
+							<VBox class="chartCard compareChart"><Title text="BOQ vs PO Amount (WBS Wise)" level="H3"/>
+								<HBox class="compareBars" items="{dash>/compareBars}" justifyContent="SpaceAround">
+									<items>
+										<VBox class="compareGroup"><Text text="{dash>label}"/>
+											<HBox alignItems="End" class="barPair"><VBox class="column boqColumn" height="{dash>boqHeight}"/><VBox class="column poColumn" height="{dash>poHeight}"/></HBox><Text text="{dash>boqShort} / {dash>poShort}" class="legendSmall"/></VBox>
+									</items>
+								</HBox>
+								<HBox class="legend"><Text text="● BOQ Amount"/><Text text="● PO Amount"/></HBox>
+							</VBox>
+							<VBox class="chartCard distChart"><Title text="Amount Overview" level="H3"/>
+								<VBox class="distLegend" items="{dash>/distribution/items}">
+									<items>
+										<HBox class="amountLine"><Text text="{dash>label}"/><ToolbarSpacer/><Text text="{dash>value}"/></HBox>
+									</items>
+								</VBox><Text text="Values are shown independently from backend fields." class="chartNote"/></VBox>
+						</HBox>
+						<HBox class="sectionHeader" alignItems="Center">
+							<VBox><Title text="Project Details – WBS &amp; Material Wise" level="H2"/><Text text="Select a WBS row to review its material analysis"/></VBox><ToolbarSpacer/><SearchField width="16rem" placeholder="Search WBS / Material..." liveChange="onSearch"/><Button text="Expand All" icon="sap-icon://open-command-field" press="onExpandAll"/><Button text="Collapse All" icon="sap-icon://close-command-field" press="onCollapseAll"/></HBox>
+						<Tree id="wbsTree" items="{dash>/tree}" mode="SingleSelectMaster" selectionChange="onWbsSelect" class="wbsTree"><StandardTreeItem title="{dash>title}" info="{dash>info}" infoState="Success"/></Tree>
+						<HBox class="tableHeader"><Title text="Material Comparison" level="H3"/><ToolbarSpacer/><Text text="WBS: {dash>/selectedWbs}"/></HBox>
+						<ScrollContainer horizontal="true" vertical="true" height="19rem" class="materialScroll">
+							<Table id="materialTable" items="{dash>/materials}" fixedLayout="false" growing="true" growingScrollToLoad="true">
+								<columns>
+									<Column><Text text="Material / Service"/></Column>
+									<Column><Text text="G/L Account"/></Column>
+									<Column hAlign="End"><Text text="BOQ Qty"/></Column>
+									<Column hAlign="End"><Text text="BOQ Rate"/></Column>
+									<Column hAlign="End"><Text text="BOQ Amount"/></Column>
+									<Column hAlign="End"><Text text="PO Qty"/></Column>
+									<Column hAlign="End"><Text text="PO Rate"/></Column>
+									<Column hAlign="End"><Text text="PO Amount"/></Column>
+									<Column hAlign="End"><Text text="Availability"/></Column>
+									<Column hAlign="End"><Text text="Saving"/></Column>
+								</columns>
+								<items>
+									<ColumnListItem type="Active" press="onMaterialSelect">
+										<cells><Text text="{dash>SERVICE_OR_MATERIAL}"/><Text text="{dash>GL_ACCOUNT}"/><Text text="{dash>BOQ_QTY}"/><Text text="{dash>BOQ_RATE}"/><Text text="{dash>boqFmt}"/><Text text="{dash>PO_QTY}"/><Text text="{dash>PO_RATE}"/><Text text="{dash>poFmt}"/><Text text="{dash>availabilityFmt}"/><ObjectNumber number="{dash>savingFmt}" state="Success"/></cells>
+									</ColumnListItem>
+								</items>
+							</Table>
+						</ScrollContainer>
+					</VBox>
+				</content>
 			</Page>
 		</pages>
 	</App>
