@@ -1,0 +1,42 @@
+<edmx:Edmx
+    xmlns:edmx="http://schemas.microsoft.com/ado/2007/06/edmx"
+    xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata"
+    xmlns:sap="http://www.sap.com/Protocols/SAPData" Version="1.0">
+    <edmx:DataServices m:DataServiceVersion="2.0">
+        <Schema
+            xmlns="http://schemas.microsoft.com/ado/2008/09/edm" Namespace="ZCOST_SAVING_SRV" xml:lang="en" sap:schema-version="1">
+            <EntityType Name="ZCOST_SAVING_DDIC_TYPE" sap:content-version="1">
+                <Key>
+                    <PropertyRef Name="BBU_SERIAL"/>
+                    <PropertyRef Name="BBU_VERSION"/>
+                    <PropertyRef Name="PROJ_PSPNR"/>
+                </Key>
+                <Property Name="BBU_SERIAL" Type="Edm.Single" Nullable="false" sap:unicode="false" sap:label="Undefined range (can be used for patch levels)" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="BBU_VERSION" Type="Edm.String" Nullable="false" MaxLength="15" sap:unicode="false" sap:label="Char15" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="PROJ_PSPNR" Type="Edm.String" Nullable="false" MaxLength="24" sap:unicode="false" sap:label="Project def." sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="ORGINAL_BBU_AMOUNT" Type="Edm.Decimal" Nullable="false" Precision="13" Scale="2" sap:unicode="false" sap:label="Net Value" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="UPDATED_BBU_AMOUNT" Type="Edm.Decimal" Nullable="false" Precision="13" Scale="2" sap:unicode="false" sap:label="Net Value" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="WBS" Type="Edm.String" Nullable="false" MaxLength="24" sap:unicode="false" sap:label="WBS Element" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="SERVICE_OR_MATERIAL" Type="Edm.String" Nullable="false" MaxLength="40" sap:unicode="false" sap:label="Material" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="GL_ACCOUNT" Type="Edm.String" Nullable="false" MaxLength="10" sap:unicode="false" sap:label="Cost element" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="BOQ_QTY" Type="Edm.Decimal" Nullable="false" Precision="13" Scale="3" sap:unicode="false" sap:label="Invoiced Qty" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="BOQ_RATE" Type="Edm.Decimal" Nullable="false" Precision="13" Scale="2" sap:unicode="false" sap:label="Net Value" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="BOQ_AMOUNT" Type="Edm.Decimal" Nullable="false" Precision="13" Scale="2" sap:unicode="false" sap:label="Net Value" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="PO_QTY" Type="Edm.Decimal" Nullable="false" Precision="13" Scale="3" sap:unicode="false" sap:label="Quantity" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="PO_RATE" Type="Edm.Decimal" Nullable="false" Precision="11" Scale="2" sap:unicode="false" sap:label="Net Price" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="POAMT" Type="Edm.Decimal" Nullable="false" Precision="23" Scale="2" sap:unicode="false" sap:label="Amount in LC" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="AVAILABILITY" Type="Edm.Decimal" Nullable="false" Precision="23" Scale="2" sap:unicode="false" sap:label="Amount in LC" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="SAVING" Type="Edm.Decimal" Nullable="false" Precision="23" Scale="2" sap:unicode="false" sap:label="Amount in LC" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+            </EntityType>
+            <EntityContainer Name="ZCOST_SAVING_SRV_Entities" m:IsDefaultEntityContainer="true" sap:supported-formats="atom json xlsx">
+                <EntitySet Name="ZCOST_SAVING_DDIC_TYPESet" EntityType="ZCOST_SAVING_SRV.ZCOST_SAVING_DDIC_TYPE" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:pageable="false" sap:content-version="1"/>
+            </EntityContainer>
+            <Annotation
+                xmlns="http://docs.oasis-open.org/odata/ns/edm" Term="Core.SchemaVersion" String="1.0.0"/>
+                <atom:link
+                    xmlns:atom="http://www.w3.org/2005/Atom" rel="self" href="/sap/opu/odata/sap/ZCOST_SAVING_SRV/$metadata"/>
+                    <atom:link
+                        xmlns:atom="http://www.w3.org/2005/Atom" rel="latest-version" href="/sap/opu/odata/sap/ZCOST_SAVING_SRV/$metadata"/>
+                    </Schema>
+                </edmx:DataServices>
+            </edmx:Edmx>
