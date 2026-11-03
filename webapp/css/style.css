@@ -179,6 +179,11 @@ body,
     background: linear-gradient(90deg, #21a354, #08753a);
     border-radius: 0 6px 6px 0;
 }
+.redBar {
+    height: 100%;
+    background: linear-gradient(90deg, #e86c6c, #c83737);
+    border-radius: 0 6px 6px 0;
+}
 
 .barValue {
     width: 95px;
@@ -383,3 +388,117 @@ body,
         font-size: .95rem;
     }
 }
+
+.serialHeader,
+.serialParent {
+    display: grid !important;
+    align-items: center;
+    min-width: 1120px;
+    grid-template-columns: 38px 90px 90px minmax(200px, 1.4fr) 95px repeat(4, minmax(145px, 1fr));
+    column-gap: 4px;
+}
+.serialHeader {
+    background: #f5f8f6;
+    border: 1px solid #dfe8e1;
+    border-bottom: 0;
+    padding: 8px 5px;
+    font-weight: 700;
+    font-size: .7rem;
+    color: #34483a;
+}
+.serialParent {
+    background: #e7f5ea;
+    border: 1px solid #d7e9dc;
+    border-radius: 8px;
+    margin-bottom: 3px;
+    padding: 3px 5px;
+    min-height: 39px;
+}
+.serialParent:hover { background: #d9f0df; }
+.serialParent > .sapMBtn { flex: 0 0 38px; }
+.serialHeader > .sapMText,
+.serialParent > .sapMText,
+.serialParent > .sapMObjectNumber {
+    min-width: 0;
+    padding: 0 5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .72rem;
+}
+.serialHeader > .sapMText:first-child { min-width: 38px; }
+.serialParent > .sapMText:nth-child(2) { font-weight: 700; }
+.serialParent > .sapMObjectNumber { text-align: right; }
+.serialList {
+    overflow-x: auto;
+    background: #fff;
+    border: 1px solid #dfe8e1;
+    padding: 5px;
+    max-height: 690px;
+    overflow-y: auto;
+}
+.serialBlock { min-width: 1120px; }
+.serialDetail {
+    margin: 0 4px 8px 42px;
+    padding: 10px;
+    background: #f7fbf8;
+    border: 1px solid #d8e9dd;
+    border-radius: 0 0 10px 10px;
+    gap: 10px;
+}
+.serialSummary { gap: 8px; }
+.serialSummary > .sapMVBox {
+    flex: 1 1 150px;
+    background: #fff;
+    border: 1px solid #e0e9e3;
+    border-radius: 8px;
+    padding: 8px 10px;
+    box-shadow: 0 1px 4px #203b2a0c;
+}
+.serialSummary .sapMText { font-size: .7rem; color: #718078; }
+.serialSummary .sapMTitle { color: #145b35; font-size: .95rem; }
+.serialCharts { gap: 10px; align-items: stretch; }
+.materialChart { flex: 1 1 350px; min-width: 300px; min-height: 205px; }
+.materialChart .compareBars { height: 132px; }
+.materialChart .compareGroup { flex: 0 0 84px; min-width: 84px; }
+.materialChart .barPair { height: 95px; }
+.materialChart .savingBars { gap: 4px; }
+.materialChart .barRow { min-height: 26px; }
+.materialChart .barValue { overflow: visible; white-space: nowrap; }
+.materialScroll { min-width: 100%; }
+.subtotalRow {
+    background: #e8f5ec;
+    border-top: 1px solid #c9dfd0;
+    padding: 8px 12px;
+    gap: 18px;
+    font-weight: 700;
+    color: #145b35;
+}
+.subtotalRow > .sapMText { white-space: nowrap; }
+.grandTotal {
+    display: grid !important;
+    grid-template-columns: 38px 90px 90px minmax(200px, 1.4fr) 95px repeat(4, minmax(145px, 1fr));
+    min-width: 1120px;
+    background: linear-gradient(90deg, #14803e, #075a2d);
+    color: #fff;
+    border-radius: 9px;
+    padding: 10px 16px;
+    gap: 30px;
+    font-weight: 800;
+    box-shadow: 0 2px 5px #183b2633;
+}
+.grandTotal > .sapMText { white-space: nowrap; }
+.grandTotal > .sapMText:first-child { font-size: 1rem; grid-column: 1 / span 5; }
+.grandTotal > .sapMText:not(:first-child) { font-size: .85rem; }
+.emptyTableState {
+    min-height: 74px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid #dfe8e1;
+    border-top: 0;
+    background: #fff;
+    color: #718078;
+    font-size: .85rem;
+}
+.emptyTableState .sapUiIcon { color: #16834a; font-size: 1.2rem; }

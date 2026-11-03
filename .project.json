@@ -40,12 +40,12 @@
     "blockPushLevel": "Error"
   },
   "build": {
-    "buildRequired": true,
+    "buildRequired": false,
     "sourceFolder": "webapp",
     "targetFolder": "dist",
     "excludedFolders": [],
     "excludedFiles": [],
-    "lastBuildDateTime": "Mon, 02 Nov 2026 10:39:24 GMT"
+    "lastBuildDateTime": "Tue, 03 Nov 2026 07:20:54 GMT"
   },
   "mockpreview": {
     "mockUri": "/sap/opu/odata/sap/ZCOST_SAVING_SRV",
@@ -56,6 +56,6 @@
   },
   "deploy": {
     "destination": "Waree",
-    "name": "ZBSP_CostSaving"
+    "name": "ZBSP_COSTSAVING"
   }
 }

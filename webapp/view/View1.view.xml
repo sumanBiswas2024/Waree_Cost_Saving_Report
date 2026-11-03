@@ -22,7 +22,7 @@
 						</HBox>
 						<HBox class="chartRow" wrap="Wrap">
 							<VBox class="chartCard savingChart">
-								<HBox justifyContent="SpaceBetween"><Title text="WBS-wise Saving (Top 10)" level="H3"/>
+								<HBox justifyContent="SpaceBetween"><Title text="Serial-wise Saving (Top 10)" level="H3"/>
 									<Select selectedKey="10" change="onTopChange">
 										<items><core:Item xmlns:core="sap.ui.core" key="10" text="Top 10"/><core:Item xmlns:core="sap.ui.core" key="20" text="Top 20"/><core:Item xmlns:core="sap.ui.core" key="all" text="All"/></items>
 									</Select>
@@ -34,7 +34,7 @@
 									</items>
 								</VBox>
 							</VBox>
-							<VBox class="chartCard compareChart"><Title text="BOQ vs PO Amount (WBS Wise)" level="H3"/>
+							<VBox class="chartCard compareChart"><Title text="BOQ vs PO Amount (Serial Wise)" level="H3"/>
 								<HBox class="compareBars" items="{dash>/compareBars}" justifyContent="SpaceAround">
 									<items>
 										<VBox class="compareGroup"><Text text="{dash>label}"/>
@@ -51,30 +51,76 @@
 								</VBox><Text text="Values are shown independently from backend fields." class="chartNote"/></VBox>
 						</HBox>
 						<HBox class="sectionHeader" alignItems="Center">
-							<VBox><Title text="Project Details – WBS &amp; Material Wise" level="H2"/><Text text="Select a WBS row to review its material analysis"/></VBox><ToolbarSpacer/><SearchField width="16rem" placeholder="Search WBS / Material..." liveChange="onSearch"/><Button text="Expand All" icon="sap-icon://open-command-field" press="onExpandAll"/><Button text="Collapse All" icon="sap-icon://close-command-field" press="onCollapseAll"/></HBox>
-						<Tree id="wbsTree" items="{dash>/tree}" mode="SingleSelectMaster" selectionChange="onWbsSelect" class="wbsTree"><StandardTreeItem title="{dash>title}" info="{dash>info}" infoState="Success"/></Tree>
-						<HBox class="tableHeader"><Title text="Material Comparison" level="H3"/><ToolbarSpacer/><Text text="WBS: {dash>/selectedWbs}"/></HBox>
-						<ScrollContainer horizontal="true" vertical="true" height="19rem" class="materialScroll">
-							<Table id="materialTable" items="{dash>/materials}" fixedLayout="false" growing="true" growingScrollToLoad="true">
-								<columns>
-									<Column><Text text="Material / Service"/></Column>
-									<Column><Text text="G/L Account"/></Column>
-									<Column hAlign="End"><Text text="BOQ Qty"/></Column>
-									<Column hAlign="End"><Text text="BOQ Rate"/></Column>
-									<Column hAlign="End"><Text text="BOQ Amount"/></Column>
-									<Column hAlign="End"><Text text="PO Qty"/></Column>
-									<Column hAlign="End"><Text text="PO Rate"/></Column>
-									<Column hAlign="End"><Text text="PO Amount"/></Column>
-									<Column hAlign="End"><Text text="Availability"/></Column>
-									<Column hAlign="End"><Text text="Saving"/></Column>
-								</columns>
-								<items>
-									<ColumnListItem type="Active" press="onMaterialSelect">
-										<cells><Text text="{dash>SERVICE_OR_MATERIAL}"/><Text text="{dash>GL_ACCOUNT}"/><Text text="{dash>BOQ_QTY}"/><Text text="{dash>BOQ_RATE}"/><Text text="{dash>boqFmt}"/><Text text="{dash>PO_QTY}"/><Text text="{dash>PO_RATE}"/><Text text="{dash>poFmt}"/><Text text="{dash>availabilityFmt}"/><ObjectNumber number="{dash>savingFmt}" state="Success"/></cells>
-									</ColumnListItem>
-								</items>
-							</Table>
-						</ScrollContainer>
+							<VBox><Title text="Project Details – Serial &amp; Material Wise" level="H2"/><Text text="Rows are grouped by serial, version and project; WBS shows the backend value"/></VBox><ToolbarSpacer/><SearchField width="16rem" placeholder="Search Serial / WBS / Material..." liveChange="onSearch"/><Button text="Expand All" icon="sap-icon://open-command-field" press="onExpandAll"/><Button text="Collapse All" icon="sap-icon://close-command-field" press="onCollapseAll"/></HBox>
+						<HBox class="serialHeader" visible="{dash>/hasData}"><Text text=""/><Text text="Serial"/><Text text="Version"/><Text text="WBS"/><Text text="Materials"/><Text text="BOQ Amount"/><Text text="PO Amount"/><Text text="Availability"/><Text text="Saving"/></HBox>
+						<VBox class="emptyTableState" visible="{= !${dash>/hasData}}"><core:Icon xmlns:core="sap.ui.core" src="sap-icon://database"/><Text text="{dash>/emptyMessage}"/></VBox>
+						<VBox id="serialList" class="serialList" visible="{dash>/hasData}" items="{dash>/serials}">
+							<items>
+								<VBox class="serialBlock">
+									<HBox class="serialParent" alignItems="Center">
+										<Button type="Transparent" icon="{= ${dash>expanded} ? 'sap-icon://navigation-down-arrow' : 'sap-icon://navigation-right-arrow'}"
+											press="onToggleSerial"/>
+										<Text text="{dash>serial}"/><Text text="{dash>version}"/><Text text="{dash>wbs}"/><Text text="{dash>materialCount}"/><Text text="{dash>boqFmt}"/><Text text="{dash>poFmt}"/><Text text="{dash>availabilityFmt}"/><ObjectNumber number="{dash>savingFmt}" state="Success"/>
+									</HBox>
+									<VBox visible="{dash>expanded}" class="serialDetail">
+										<HBox class="serialSummary" wrap="Wrap">
+											<VBox><Text text="Material Count"/><Title text="{dash>materialCount}"/></VBox>
+											<VBox><Text text="BOQ Amount"/><Title text="{dash>boqFmt}"/></VBox>
+											<VBox><Text text="PO Amount"/><Title text="{dash>poFmt}"/></VBox>
+											<VBox><Text text="Availability"/><Title text="{dash>availabilityFmt}"/></VBox>
+											<VBox><Text text="Saving"/><Title text="{dash>savingFmt}"/></VBox>
+										</HBox>
+										<HBox class="serialCharts" wrap="Wrap">
+											<VBox class="chartCard materialChart"><Title text="Material-wise BOQ vs PO" level="H3"/>
+												<ScrollContainer horizontal="true" vertical="false" width="100%">
+													<HBox class="compareBars" width="{dash>chartWidth}" items="{dash>compareBars}" justifyContent="Start">
+														<items>
+															<VBox class="compareGroup"><Text text="{dash>label}"/>
+																<HBox alignItems="End" class="barPair"><VBox class="column boqColumn" height="{dash>boqHeight}"/><VBox class="column poColumn" height="{dash>poHeight}"/></HBox><Text text="{dash>boqShort} / {dash>poShort}" class="legendSmall"/></VBox>
+														</items>
+													</HBox>
+												</ScrollContainer>
+												<HBox class="legend"><Text text="● BOQ"/><Text text="● PO"/></HBox>
+											</VBox>
+											<VBox class="chartCard materialChart"><Title text="Material-wise Saving" level="H3"/>
+												<ScrollContainer horizontal="true" vertical="false" width="100%">
+													<VBox items="{dash>savingBars}" width="{dash>chartWidth}" class="savingBars">
+														<items>
+															<HBox class="barRow" alignItems="Center"><Text text="{dash>label}" class="barLabel"/>
+																<VBox class="barTrack"><HBox class="greenBar" visible="{= !${dash>negative}}" width="{dash>width}"/><HBox class="redBar" visible="{dash>negative}" width="{dash>width}"/></VBox><ObjectStatus text="{dash>amount}" state="{dash>state}" class="barValue"/></HBox>
+														</items>
+													</VBox>
+												</ScrollContainer>
+											</VBox>
+										</HBox>
+										<HBox class="tableHeader"><Title text="Material Comparison" level="H3"/><ToolbarSpacer/><Text text="Serial {dash>serial} · Version {dash>version}"/></HBox>
+										<ScrollContainer horizontal="true" vertical="true" height="16rem" class="materialScroll">
+											<Table items="{dash>materials}" fixedLayout="false">
+												<columns>
+													<Column><Text text="Material / Service"/></Column>
+													<Column><Text text="G/L Account"/></Column>
+													<Column hAlign="End"><Text text="BOQ Qty"/></Column>
+													<Column hAlign="End"><Text text="BOQ Rate"/></Column>
+													<Column hAlign="End"><Text text="BOQ Amount"/></Column>
+													<Column hAlign="End"><Text text="PO Qty"/></Column>
+													<Column hAlign="End"><Text text="PO Rate"/></Column>
+													<Column hAlign="End"><Text text="PO Amount"/></Column>
+													<Column hAlign="End"><Text text="Availability"/></Column>
+													<Column hAlign="End"><Text text="Saving"/></Column>
+												</columns>
+												<items>
+													<ColumnListItem type="Active" press="onMaterialSelect">
+														<cells><Text text="{dash>SERVICE_OR_MATERIAL}"/><Text text="{dash>GL_ACCOUNT}"/><Text text="{dash>BOQ_QTY}"/><Text text="{dash>BOQ_RATE}"/><Text text="{dash>boqFmt}"/><Text text="{dash>PO_QTY}"/><Text text="{dash>PO_RATE}"/><Text text="{dash>poFmt}"/><Text text="{dash>availabilityFmt}"/><ObjectNumber number="{dash>savingFmt}" state="Success"/></cells>
+													</ColumnListItem>
+												</items>
+											</Table>
+										</ScrollContainer>
+										<HBox class="subtotalRow"><Text text="Subtotal – Serial {dash>serial}"/><ToolbarSpacer/><Text text="{dash>boqFmt}"/><Text text="{dash>poFmt}"/><Text text="{dash>availabilityFmt}"/><Text text="{dash>savingFmt}"/></HBox>
+									</VBox>
+								</VBox>
+							</items>
+						</VBox>
+						<HBox class="grandTotal" visible="{dash>/hasData}"><Text text="Grand Total"/><Text text="{dash>/grandTotal/boqFmt}"/><Text text="{dash>/grandTotal/poFmt}"/><Text text="{dash>/grandTotal/availabilityFmt}"/><Text text="{dash>/grandTotal/savingFmt}"/></HBox>
 					</VBox>
 				</content>
 			</Page>

@@ -16,19 +16,18 @@ sap.ui.define([
 				showMeasure: true,
 				maxFractionDigits: 2
 			});
-			this._number = NumberFormat.getFloatInstance({
-				maxFractionDigits: 2
-			});
 			this.getView().setModel(new JSONModel({
 				kpis: [],
-				tree: [],
-				materials: [],
+				serials: [],
 				savingBars: [],
 				compareBars: [],
 				distribution: {
 					items: []
 				},
-				selectedWbs: "—"
+				grandTotal: {},
+				status: "",
+				hasData: false,
+				emptyMessage: "No project data. Enter a project ID and choose Go."
 			}), "dash");
 			this.byId("statusStrip").setText("Enter a project ID and choose Go.");
 		},
@@ -38,6 +37,9 @@ sap.ui.define([
 		_money: function(v) {
 			return this._currency.format(this._num(v), "INR");
 		},
+		_compact: function(v) {
+			return "₹ " + (this._num(v) / 10000000).toFixed(2) + " Cr";
+		},
 		onGo: function() {
 			this._loadProject(this.byId("projectInput").getValue());
 		},
@@ -46,9 +48,20 @@ sap.ui.define([
 		},
 		onReset: function() {
 			this.byId("projectInput").setValue("");
-			this._modelData = [];
-			this._allWbs = [];
-			this.getView().getModel("dash").setData({kpis: [], tree: [], materials: [], savingBars: [], compareBars: [], distribution: {items: []}, selectedWbs: "—"});
+			this._rows = [];
+			this.getView().getModel("dash").setData({
+				kpis: [],
+				serials: [],
+				savingBars: [],
+				compareBars: [],
+				distribution: {
+					items: []
+				},
+				grandTotal: {},
+				status: "",
+				hasData: false,
+				emptyMessage: "No project data. Enter a project ID and choose Go."
+			});
 			this._setStatus("Enter a project ID and choose Go.", "Information");
 			this.byId("refreshText").setText("Last Refreshed: —");
 		},
@@ -67,266 +80,283 @@ sap.ui.define([
 				this._setStatus("The project data service is unavailable.", "Error");
 				return;
 			}
-			var aFilters = [new Filter("PROJ_PSPNR", FilterOperator.EQ, sProject)];
+			this.getView().getModel("dash").setData({kpis: [], serials: [], savingBars: [], compareBars: [], distribution: {items: []}, grandTotal: {}, hasData: false, emptyMessage: "Loading project data…"});
 			this._setStatus("Loading project " + sProject + "…", "Information");
 			this.getView().setBusy(true);
-			this._readAll(oModel, aFilters).then(function(aRows) {
+			this._readAll(oModel, [new Filter("PROJ_PSPNR", FilterOperator.EQ, sProject)]).then(function(aRows) {
 				console.log("Project cost records loaded", aRows.length);
 				this._renderData(aRows);
 				this.getView().setBusy(false);
 				this.byId("refreshText").setText("Last Refreshed: " + new Date().toLocaleString());
-				this._setStatus(aRows.length ? "Loaded " + aRows.length + " records for project " + sProject + "." : "No records found for project " + sProject + ".", aRows.length ? "Success" : "Warning");
+				this._setStatus(aRows.length ? "Loaded " + aRows.length + " records for project " + sProject +
+					". The descriptive WBS label is not present in this response; the table shows the backend WBS value." :
+					"No records found for project " + sProject + ".", aRows.length ? "Information" : "Warning");
 			}.bind(this)).catch(function(e) {
 				console.log("Project data request failed", e);
 				this.getView().setBusy(false);
+				this.getView().getModel("dash").setProperty("/emptyMessage", "Unable to load project data. Check the connection and try again.");
 				this._setStatus("Unable to load project data. Check the connection and try again.", "Error");
 				MessageToast.show("Unable to load project data.");
 			}.bind(this));
 		},
 		_setStatus: function(sText, sType) {
-			var oStrip = this.byId("statusStrip");
-			oStrip.setText(sText);
-			oStrip.setType(sType);
-			oStrip.setVisible(true);
+			var strip = this.byId("statusStrip");
+			strip.setText(sText);
+			strip.setType(sType);
+			strip.setVisible(true);
 		},
 		_readAll: function(oModel, aFilters) {
 			return new Promise(function(resolve, reject) {
-				var aResults = [];
+				var rows = [];
 
 				function read(sUrl) {
-					var mParams = {
-						filters: aFilters,
-						success: function(oData) {
-							aResults = aResults.concat(oData.results || []);
-							if (oData.__next) {
-								read(oData.__next);
-							} else {
-								resolve(aResults);
-							}
+					oModel.read(sUrl || "/ZCOST_SAVING_DDIC_TYPESet", {
+						filters: sUrl ? undefined : aFilters,
+						success: function(data) {
+							rows = rows.concat(data.results || []);
+							data.__next ? read(data.__next) : resolve(rows);
 						},
 						error: reject
-					};
-					if (sUrl) {
-						oModel.read(sUrl, mParams);
-					} else {
-						oModel.read("/ZCOST_SAVING_DDIC_TYPESet", mParams);
-					}
+					});
 				}
 				read();
 			});
 		},
-		_renderData: function(aRows) {
-			var mWbs = Object.create(null),
-				nBoq = 0,
-				nPo = 0,
-				nAvailability = 0,
-				nSaving = 0;
-			aRows.forEach(function(r) {
-				var sWbs = r.WBS || "(No WBS)",
-					w = mWbs[sWbs] || (mWbs[sWbs] = {
-						id: sWbs,
-						rows: [],
-						boq: 0,
-						po: 0,
-						availability: 0,
-						saving: 0
-					});
-				var nB = this._num(r.BOQ_AMOUNT),
-					nP = this._num(r.POAMT),
-					nA = this._num(r.AVAILABILITY),
-					nS = this._num(r.SAVING);
-				w.rows.push(r);
-				w.boq += nB;
-				w.po += nP;
-				w.availability += nA;
-				w.saving += nS;
-				nBoq += nB;
-				nPo += nP;
-				nAvailability += nA;
-				nSaving += nS;
+		_renderData: function(rows) {
+			this._rows = rows;
+			var groups = Object.create(null),
+				sums = {
+					boq: 0,
+					po: 0,
+					availability: 0,
+					saving: 0
+				};
+			rows.forEach(function(r) {
+				var key = [r.BBU_SERIAL, r.BBU_VERSION, r.PROJ_PSPNR].join("|");
+				var g = groups[key] || (groups[key] = {
+					key: key,
+					serial: r.BBU_SERIAL,
+					version: r.BBU_VERSION,
+					project: r.PROJ_PSPNR,
+					wbs: r.WBS || "",
+					materials: [],
+					boq: 0,
+					po: 0,
+					availability: 0,
+					saving: 0
+				});
+				g.materials.push(r);
+				g.boq += this._num(r.BOQ_AMOUNT);
+				g.po += this._num(r.POAMT);
+				g.availability += this._num(r.AVAILABILITY);
+				g.saving += this._num(r.SAVING);
+				sums.boq += this._num(r.BOQ_AMOUNT);
+				sums.po += this._num(r.POAMT);
+				sums.availability += this._num(r.AVAILABILITY);
+				sums.saving += this._num(r.SAVING);
 			}, this);
-			var aWbs = Object.keys(mWbs).map(function(k) {
-				return mWbs[k];
-			}).sort(function(a, b) {
+			var serials = Object.keys(groups).map(function(k) {
+				return groups[k];
+			});
+			this._serials = serials;
+			this._totals = sums;
+			this._publish(serials, sums);
+		},
+		_publish: function(groups, sums) {
+			var model = this.getView().getModel("dash"),
+				rows = this._rows || [],
+				first = rows[0] || {},
+				self = this;
+			var serials = groups.map(function(g) {
+				var max = Math.max.apply(null, g.materials.map(function(r) {
+					return Math.max(self._num(r.BOQ_AMOUNT), self._num(r.POAMT));
+				}).concat([1]));
+				return Object.assign({}, g, {
+					materialCount: g.materials.length,
+					chartWidth: Math.max(520, g.materials.length * 92) + "px",
+					boqFmt: self._money(g.boq),
+					poFmt: self._money(g.po),
+					availabilityFmt: self._money(g.availability),
+					savingFmt: self._money(g.saving),
+					expanded: !!g.expanded,
+					materials: g.materials.map(function(r) {
+						return Object.assign({}, r, {
+							boqFmt: self._money(r.BOQ_AMOUNT),
+							poFmt: self._money(r.POAMT),
+							availabilityFmt: self._money(r.AVAILABILITY),
+							savingFmt: self._money(r.SAVING)
+						});
+					}),
+					compareBars: g.materials.map(function(r) {
+						return {
+							label: r.SERVICE_OR_MATERIAL,
+							boqHeight: Math.max(self._num(r.BOQ_AMOUNT) / max * 100, 2) + "%",
+							poHeight: Math.max(self._num(r.POAMT) / max * 100, 2) + "%",
+							boqShort: self._compact(r.BOQ_AMOUNT),
+							poShort: self._compact(r.POAMT)
+						};
+					}),
+					savingBars: g.materials.slice().sort(function(a, b) {
+						return self._num(b.SAVING) - self._num(a.SAVING);
+					}).map(function(r) {
+						var top = Math.max.apply(null, g.materials.map(function(x) {
+							return Math.abs(self._num(x.SAVING));
+						}).concat([1]));
+						return {
+							label: r.SERVICE_OR_MATERIAL,
+							amount: self._money(r.SAVING),
+							width: Math.max(2, Math.abs(self._num(r.SAVING)) / top * 100) + "%",
+							negative: self._num(r.SAVING) < 0,
+							state: self._num(r.SAVING) < 0 ? "Error" : "Success"
+						};
+					})
+				});
+			});
+			var sorted = groups.slice().sort(function(a, b) {
 				return b.saving - a.saving;
 			});
-			this._allWbs = aWbs;
-			this._modelData = aRows;
-			this._setDashboard(aWbs, aRows, nBoq, nPo, nAvailability, nSaving);
-		},
-		_setDashboard: function(aWbs, aRows, nBoq, nPo, nAvailability, nSaving) {
-			var o = this.getView().getModel("dash"),
-				nOriginal = aRows.length ? this._num(aRows[0].ORGINAL_BBU_AMOUNT) : 0,
-				nUpdated = aRows.length ? this._num(aRows[0].UPDATED_BBU_AMOUNT) : 0;
-			var aTree = aWbs.map(function(w) {
-				return {
-					title: w.id,
-					info: w.rows.length + " items",
-					wbs: w.id,
-					children: w.rows.map(function(r) {
-						return {
-							title: r.SERVICE_OR_MATERIAL,
-							info: this._money(r.SAVING),
-							wbs: w.id,
-							material: r.SERVICE_OR_MATERIAL
-						};
-					}, this)
-				};
-			}, this);
-			var aBars = aWbs.slice(0, this._topCount || 10),
-				nMax = Math.max.apply(null, aBars.map(function(w) {
-					return Math.abs(w.saving);
-				}).concat([1]));
-			o.setProperty("/kpis", [{
-				label: "Total WBS",
-				value: aWbs.length,
-				sub: "WBS elements",
-				icon: "sap-icon://org-chart"
-			}, {
-				label: "Total Materials",
-				value: aRows.length,
-				sub: "Material / service records",
-				icon: "sap-icon://product"
-			}, {
-				label: "Original BBU",
-				value: this._money(nOriginal),
-				sub: "Project baseline",
-				icon: "sap-icon://database"
-			}, {
-				label: "Updated BBU",
-				value: this._money(nUpdated),
-				sub: "Current BBU",
-				icon: "sap-icon://database"
-			}, {
-				label: "BOQ Amount",
-				value: this._money(nBoq),
-				sub: "Bill of quantity",
-				icon: "sap-icon://document"
-			}, {
-				label: "PO Amount",
-				value: this._money(nPo),
-				sub: "Purchase orders",
-				icon: "sap-icon://cart"
-			}, {
-				label: "Availability",
-				value: this._money(nAvailability),
-				sub: "Backend value",
-				icon: "sap-icon://shipping-status"
-			}, {
-				label: "Total Saving",
-				value: this._money(nSaving),
-				sub: "Backend value",
-				icon: "sap-icon://trend-up"
-			}]);
-			o.setProperty("/tree", aTree);
-			o.setProperty("/savingBars", aBars.map(function(w) {
-				return {
-					label: w.id,
-					amount: this._money(w.saving),
-					width: (Math.max(2, Math.abs(w.saving) / nMax * 100)) + "%"
-				};
-			}, this));
-			o.setProperty("/compareBars", aWbs.slice(0, 6).map(function(w) {
-				var top = Math.max(w.boq, w.po, 1);
-				return {
-					label: w.id,
-					boqHeight: Math.max(w.boq / top * 100, 2) + "%",
-					poHeight: Math.max(w.po / top * 100, 2) + "%",
-					boqShort: this._compact(w.boq),
-					poShort: this._compact(w.po)
-				};
-			}, this));
-			o.setProperty("/distribution", {
-				items: [{
+			model.setData({
+				kpis: [{
+					label: "Serial Groups",
+					value: groups.length,
+					sub: "Serial / version / project",
+					icon: "sap-icon://org-chart"
+				}, {
+					label: "Total Materials",
+					value: rows.length,
+					sub: "Material / service records",
+					icon: "sap-icon://product"
+				}, {
+					label: "Original BBU",
+					value: this._money(first.ORGINAL_BBU_AMOUNT),
+					sub: "Backend value",
+					icon: "sap-icon://database"
+				}, {
+					label: "Updated BBU",
+					value: this._money(first.UPDATED_BBU_AMOUNT),
+					sub: "Backend value",
+					icon: "sap-icon://database"
+				}, {
 					label: "BOQ Amount",
-					value: this._money(nBoq)
+					value: this._money(sums.boq),
+					sub: "Material records",
+					icon: "sap-icon://document"
 				}, {
 					label: "PO Amount",
-					value: this._money(nPo)
+					value: this._money(sums.po),
+					sub: "Material records",
+					icon: "sap-icon://cart"
 				}, {
 					label: "Availability",
-					value: this._money(nAvailability)
+					value: this._money(sums.availability),
+					sub: "Backend values",
+					icon: "sap-icon://shipping-status"
 				}, {
-					label: "Saving",
-					value: this._money(nSaving)
-				}]
+					label: "Total Saving",
+					value: this._money(sums.saving),
+					sub: "Backend values",
+					icon: "sap-icon://trend-up"
+				}],
+				serials: serials,
+				savingBars: sorted.slice(0, this._topCount || 10).map(function(g) {
+					return {
+						label: g.serial,
+						amount: this._money(g.saving),
+						width: Math.max(2, Math.abs(g.saving) / Math.max.apply(null, sorted.map(function(x) {
+							return Math.abs(x.saving);
+						}).concat([1])) * 100) + "%"
+					};
+				}, this),
+				compareBars: sorted.slice(0, 6).map(function(g) {
+					var max = Math.max(g.boq, g.po, 1);
+					return {
+						label: g.serial,
+						boqHeight: Math.max(g.boq / max * 100, 2) + "%",
+						poHeight: Math.max(g.po / max * 100, 2) + "%",
+						boqShort: this._compact(g.boq),
+						poShort: this._compact(g.po)
+					};
+				}, this),
+				distribution: {
+					items: [{
+						label: "BOQ Amount",
+						value: this._money(sums.boq)
+					}, {
+						label: "PO Amount",
+						value: this._money(sums.po)
+					}, {
+						label: "Availability",
+						value: this._money(sums.availability)
+					}, {
+						label: "Saving",
+						value: this._money(sums.saving)
+					}]
+				},
+				grandTotal: {
+					boqFmt: this._money(sums.boq),
+					poFmt: this._money(sums.po),
+					availabilityFmt: this._money(sums.availability),
+					savingFmt: this._money(sums.saving)
+				},
+				hasData: rows.length > 0,
+				emptyMessage: rows.length ? "" : "No data found for this project."
 			});
-			o.setProperty("/selectedWbs", aWbs.length ? aWbs[0].id : "—");
-			this._showWbs(aWbs[0]);
 		},
-		_compact: function(n) {
-			return "₹ " + (n / 10000000).toFixed(2) + " Cr";
-		},
-		_showWbs: function(w) {
-			var rows = w ? w.rows : this._modelData || [];
-			this.getView().getModel("dash").setProperty("/materials", rows.map(function(r) {
-				return Object.assign({}, r, {
-					boqFmt: this._money(r.BOQ_AMOUNT),
-					poFmt: this._money(r.POAMT),
-					availabilityFmt: this._money(r.AVAILABILITY),
-					savingFmt: this._money(r.SAVING)
-				});
-			}, this));
-		},
-		onWbsSelect: function(e) {
-			var item = e.getParameter("listItem"),
-				ctx = item && item.getBindingContext("dash"),
-				w = ctx && this._allWbs.find(function(x) {
-					return x.id === ctx.getProperty("wbs");
-				});
-			if (w) {
-				this.byId("wbsTree").removeSelections(true);
-				this.getView().getModel("dash").setProperty("/selectedWbs", w.id);
-				this._showWbs(w);
-			}
-		},
-		onTopChange: function(e) {
-			var k = e.getParameter("selectedItem").getKey(),
-				a = this._modelData || [],
-				nBoq = 0,
-				nPo = 0,
-				nAv = 0,
-				nSv = 0;
-			this._topCount = k === "all" ? this._allWbs.length : Number(k);
-			a.forEach(function(r) {
-				nBoq += this._num(r.BOQ_AMOUNT);
-				nPo += this._num(r.POAMT);
-				nAv += this._num(r.AVAILABILITY);
-				nSv += this._num(r.SAVING);
-			}, this);
-			this._setDashboard(this._allWbs, a, nBoq, nPo, nAv, nSv);
+		onToggleSerial: function(e) {
+			var context = e.getSource().getBindingContext("dash"),
+				path = context.getPath(),
+				expanded = context.getProperty("expanded");
+			this.getView().getModel("dash").setProperty(path + "/expanded", !expanded);
 		},
 		onExpandAll: function() {
-			this.byId("wbsTree").expandToLevel(2);
+			this.getView().getModel("dash").getProperty("/serials").forEach(function(g, i) {
+				this.getView().getModel("dash").setProperty("/serials/" + i + "/expanded", true);
+			}, this);
 		},
 		onCollapseAll: function() {
-			this.byId("wbsTree").collapseAll();
+			this.getView().getModel("dash").getProperty("/serials").forEach(function(g, i) {
+				this.getView().getModel("dash").setProperty("/serials/" + i + "/expanded", false);
+			}, this);
+		},
+		onTopChange: function(e) {
+			var groups = this._serials || [];
+			this._topCount = e.getParameter("selectedItem").getKey() === "all" ? groups.length : Number(e.getParameter("selectedItem").getKey());
+			if (this._totals) {
+				this._publish(groups, this._totals);
+			}
 		},
 		onSearch: function(e) {
-			var b = this.byId("wbsTree").getBinding("items"),
-				q = e.getParameter("newValue");
-			b.filter(q ? [new Filter("title", FilterOperator.Contains, q)] : []);
+			var q = (e.getParameter("newValue") || "").toLowerCase(),
+				groups = this._serials || [];
+			var filtered = groups.filter(function(g) {
+				return !q || [g.serial, g.version, g.project, g.wbs].join(" ").toLowerCase().indexOf(q) >= 0 || g.materials.some(function(r) {
+					return (r.SERVICE_OR_MATERIAL || "").toLowerCase().indexOf(q) >= 0;
+				});
+			});
+			if (this._totals) {
+				this._publish(filtered, this._totals);
+			}
 		},
 		onMaterialSelect: function(e) {
 			var r = e.getSource().getBindingContext("dash").getObject();
 			MessageToast.show(r.SERVICE_OR_MATERIAL + " · BOQ " + this._money(r.BOQ_AMOUNT) + " · PO " + this._money(r.POAMT));
 		},
 		onExport: function() {
-			var rows = this._modelData || [],
-				head = ["WBS", "Material / Service", "G/L Account", "BOQ Qty", "BOQ Rate", "BOQ Amount", "PO Qty", "PO Rate", "PO Amount",
-					"Availability", "Saving"
+			var rows = this._rows || [],
+				head = ["Serial Number", "Version", "Project ID", "WBS", "Material / Service", "G/L Account", "BOQ Qty", "BOQ Rate", "BOQ Amount",
+					"PO Qty", "PO Rate", "PO Amount", "Availability", "Saving"
 				];
 			var lines = [head].concat(rows.map(function(r) {
-				return [r.WBS, r.SERVICE_OR_MATERIAL, r.GL_ACCOUNT, r.BOQ_QTY, r.BOQ_RATE, r.BOQ_AMOUNT, r.PO_QTY, r.PO_RATE, r.POAMT, r.AVAILABILITY,
-					r.SAVING
+				return [r.BBU_SERIAL, r.BBU_VERSION, r.PROJ_PSPNR, r.WBS, r.SERVICE_OR_MATERIAL, r.GL_ACCOUNT, r.BOQ_QTY, r.BOQ_RATE, r.BOQ_AMOUNT,
+					r.PO_QTY, r.PO_RATE, r.POAMT, r.AVAILABILITY, r.SAVING
 				];
 			}));
 			var csv = lines.map(function(a) {
-				return a.map(function(v) {
-					return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
-				}).join(",");
-			}).join("\r\n");
-			var blob = new Blob(["\ufeff" + csv], {
+					return a.map(function(v) {
+						return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+					}).join(",");
+				}).join("\r\n"),
+				blob = new Blob(["\ufeff" + csv], {
 					type: "text/csv;charset=utf-8;"
 				}),
 				url = URL.createObjectURL(blob),
