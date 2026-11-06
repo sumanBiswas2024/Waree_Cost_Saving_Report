@@ -213,6 +213,20 @@ sap.ui.define([
 			// handled by the chart renderer rather than a wider, horizontally scrolled frame.
 			return "100%";
 		},
+		_resizeVisibleCharts: function() {
+			window.setTimeout(function() {
+				this.getView().findAggregatedObjects(true, function(control) {
+					return control.isA && control.isA("sap.viz.ui5.controls.VizFrame");
+				}).forEach(function(frame) {
+					var dom = frame.getDomRef();
+					var viewport = dom && dom.closest(".chartViewport");
+					if (viewport && viewport.clientWidth > 0 && viewport.clientHeight > 0) {
+						frame.setWidth(viewport.clientWidth + "px");
+						frame.setHeight(viewport.clientHeight + "px");
+					}
+				});
+			}.bind(this), 100);
+		},
 		onExit: function() {
 			this.getView().findAggregatedObjects(true, function(control) {
 				var observer = control._chartResizeObserver;
@@ -561,14 +575,7 @@ sap.ui.define([
 				}
 				this._dash().setProperty(context.getPath() + "/expanded", group.expanded);
 				if (group.expanded) {
-					var block = event.getSource().getParent().getParent();
-					window.requestAnimationFrame(function() {
-						block.findAggregatedObjects(true, function(control) {
-							return control.isA && control.isA("sap.viz.ui5.controls.VizFrame");
-						}).forEach(function(frame) {
-							frame.invalidate();
-						});
-					});
+					this._resizeVisibleCharts();
 				}
 			}
 		},
@@ -587,6 +594,9 @@ sap.ui.define([
 				group.expanded = expanded;
 				model.setProperty("/wbsGroups/" + index + "/expanded", expanded);
 			});
+			if (expanded) {
+				this._resizeVisibleCharts();
+			}
 		},
 		onTopChange: function(event) {
 			var key = event.getParameter("selectedItem").getKey();
