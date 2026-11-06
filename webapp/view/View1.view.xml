@@ -6,7 +6,6 @@
 			<Page showHeader="false" class="dashboardPage">
 				<content>
 					<VBox class="appShell">
-
 						<!-- Header -->
 						<HBox class="topHeader" alignItems="Center" justifyContent="SpaceBetween">
 							<VBox>
@@ -18,19 +17,18 @@
 								<Button icon="sap-icon://refresh" type="Transparent" press="onRefresh"/>
 							</HBox>
 						</HBox>
-
 						<!-- Project bar -->
 						<HBox class="projectBar" alignItems="Center" wrap="Wrap">
 							<Label text="Project"/>
 							<Input id="projectInput" placeholder="Enter Project ID" width="22rem" showValueHelp="true" valueHelpRequest="onProjectHelp" submit="onGo"/>
 							<Button text="Go" type="Emphasized" press="onGo"/>
 							<Button text="Reset" press="onReset"/>
-							<VBox><layoutData><FlexItemData growFactor="1"/></layoutData></VBox>
+							<VBox>
+								<layoutData><FlexItemData growFactor="1"/></layoutData>
+							</VBox>
 							<Button icon="sap-icon://excel-attachment" text="Export" press="onExport"/>
 						</HBox>
-
 						<MessageStrip id="statusStrip" text="Enter a project ID and choose Go." type="Information" showIcon="true" visible="true"/>
-
 						<!-- KPIs -->
 						<HBox class="kpiRow" wrap="Wrap" items="{dash>/kpis}">
 							<items>
@@ -44,7 +42,6 @@
 								</VBox>
 							</items>
 						</HBox>
-
 						<!-- Project level charts -->
 						<HBox class="chartRow" wrap="Wrap">
 							<VBox class="chartCard savingChart">
@@ -58,15 +55,15 @@
 										</items>
 									</Select>
 								</HBox>
-								<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false"
-									autoAdjustHeight="false">
+								<Text class="chartNote" text="Saving and overrun by WBS; hover for the amount."/>
+								<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false" autoAdjustHeight="false">
 									<suite:content>
 										<suite:ChartContainerContent icon="sap-icon://vertical-bar-chart" title="WBS Saving">
 											<suite:content>
-												<ScrollContainer class="chartViewport" horizontal="true" vertical="false" width="100%" height="100%">
-													<HBox class="chartInner" width="{dash>/projectChartWidth}" height="100%">
-														<viz:VizFrame class="savingViz" vizType="stacked_column" width="100%" height="100%" uiConfig="{applicationSet:'fiori'}"
-															renderComplete="onChartRenderComplete">
+												<ScrollContainer class="chartViewport" horizontal="false" vertical="false" width="100%" height="280px">
+													<HBox class="chartInner" width="{dash>/projectSavingWidth}" height="100%">
+													<viz:VizFrame class="savingViz" vizType="bar" width="{dash>/projectSavingWidth}" height="270px"
+															uiConfig="{applicationSet:'fiori'}" renderComplete="onChartRenderComplete">
 															<viz:dataset>
 																<viz.data:FlattenedDataset data="{dash>/projectChartData}">
 																	<viz.data:dimensions>
@@ -91,17 +88,15 @@
 									</suite:content>
 								</suite:ChartContainer>
 							</VBox>
-
 							<VBox class="chartCard compareChart">
 								<HBox alignItems="Center"><Title text="BOQ vs PO Amount (WBS Wise)" level="H3"/></HBox>
-								<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false"
-									autoAdjustHeight="false">
+								<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false" autoAdjustHeight="false">
 									<suite:content>
 										<suite:ChartContainerContent icon="sap-icon://bar-chart" title="WBS BOQ vs PO">
 											<suite:content>
-												<ScrollContainer class="chartViewport" horizontal="true" vertical="false" width="100%" height="100%">
+												<ScrollContainer class="chartViewport" horizontal="false" vertical="false" width="100%" height="280px">
 													<HBox class="chartInner" width="{dash>/projectChartWidth}" height="100%">
-														<viz:VizFrame class="compareViz" vizType="column" width="100%" height="100%" uiConfig="{applicationSet:'fiori'}"
+														<viz:VizFrame class="compareViz" vizType="column" width="{dash>/projectChartWidth}" height="270px" uiConfig="{applicationSet:'fiori'}"
 															renderComplete="onChartRenderComplete">
 															<viz:dataset>
 																<viz.data:FlattenedDataset data="{dash>/projectChartData}">
@@ -127,19 +122,19 @@
 								</suite:ChartContainer>
 							</VBox>
 						</HBox>
-
 						<!-- Section header -->
 						<HBox class="sectionHeader" alignItems="Center">
 							<VBox>
 								<Title text="Project Details – WBS &amp; Material Wise" level="H2"/>
 								<Text text="One parent row per WBS; expanded tables retain each serial-level backend record"/>
 							</VBox>
-							<VBox><layoutData><FlexItemData growFactor="1"/></layoutData></VBox>
+							<VBox>
+								<layoutData><FlexItemData growFactor="1"/></layoutData>
+							</VBox>
 							<SearchField width="18rem" placeholder="Search WBS / Serial / Material..." liveChange="onSearch"/>
 							<Button text="Expand All" icon="sap-icon://open-command-field" press="onExpandAll"/>
 							<Button text="Collapse All" icon="sap-icon://close-command-field" press="onCollapseAll"/>
 						</HBox>
-
 						<HBox class="wbsHeader" visible="{dash>/hasData}">
 							<Text text=""/>
 							<Text text="WBS"/>
@@ -152,12 +147,10 @@
 							<Text text="Availability (₹ L)"/>
 							<Text text="Saving (₹ L)"/>
 						</HBox>
-
 						<VBox class="emptyTableState" visible="{= !${dash>/hasData}}">
 							<core:Icon src="sap-icon://database"/>
 							<Text text="{dash>/emptyMessage}"/>
 						</VBox>
-
 						<!-- WBS list -->
 						<VBox id="wbsList" class="wbsList" visible="{dash>/hasData}" items="{dash>/wbsGroups}">
 							<items>
@@ -175,19 +168,17 @@
 										<Text text="{dash>availabilityFmt}"/>
 										<ObjectNumber number="{dash>savingFmt}" state="{dash>savingState}"/>
 									</HBox>
-
 									<VBox visible="{dash>expanded}" class="wbsDetail">
 										<HBox class="wbsCharts" wrap="NoWrap">
 											<VBox class="chartCard materialChart">
 												<Title text="Material-wise BOQ vs PO (₹ L)" level="H3"/>
-												<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false"
-													autoAdjustHeight="false">
+												<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false" autoAdjustHeight="false">
 													<suite:content>
 														<suite:ChartContainerContent icon="sap-icon://bar-chart" title="Material BOQ and PO">
 															<suite:content>
-																<ScrollContainer class="chartViewport" horizontal="true" vertical="false" width="100%" height="100%">
+																<ScrollContainer class="chartViewport" horizontal="false" vertical="false" width="100%" height="280px">
 																	<HBox class="chartInner" width="{dash>chartWidth}" height="100%">
-																		<viz:VizFrame class="compareViz" vizType="column" width="100%" height="100%" uiConfig="{applicationSet:'fiori'}"
+																		<viz:VizFrame class="compareViz" vizType="column" width="{dash>chartWidth}" height="270px" uiConfig="{applicationSet:'fiori'}"
 																			renderComplete="onChartRenderComplete">
 																			<viz:dataset>
 																				<viz.data:FlattenedDataset data="{dash>materialChartData}">
@@ -212,17 +203,16 @@
 													</suite:content>
 												</suite:ChartContainer>
 											</VBox>
-
 											<VBox class="chartCard materialChart">
 												<Title text="Material-wise Saving (₹ L)" level="H3"/>
-												<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false"
-													autoAdjustHeight="false">
+										<Text class="chartNote" text="Saving and overrun by material; hover for the amount."/>
+												<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false" autoAdjustHeight="false">
 													<suite:content>
 														<suite:ChartContainerContent icon="sap-icon://vertical-bar-chart" title="Material Saving">
 															<suite:content>
-																<ScrollContainer class="chartViewport" horizontal="true" vertical="false" width="100%" height="100%">
-																	<HBox class="chartInner" width="{dash>chartWidth}" height="100%">
-																		<viz:VizFrame class="materialSavingViz" vizType="stacked_column" width="100%" height="100%"
+																<ScrollContainer class="chartViewport" horizontal="false" vertical="false" width="100%" height="280px">
+																	<HBox class="chartInner" width="{dash>savingChartWidth}" height="100%">
+													<viz:VizFrame class="materialSavingViz" vizType="bar" width="{dash>savingChartWidth}" height="270px"
 																			uiConfig="{applicationSet:'fiori'}" renderComplete="onChartRenderComplete">
 																			<viz:dataset>
 																				<viz.data:FlattenedDataset data="{dash>materialChartData}">
@@ -249,13 +239,13 @@
 												</suite:ChartContainer>
 											</VBox>
 										</HBox>
-
 										<HBox class="tableHeader" alignItems="Center">
 											<Title text="Material Comparison" level="H3"/>
-											<VBox><layoutData><FlexItemData growFactor="1"/></layoutData></VBox>
+											<VBox>
+												<layoutData><FlexItemData growFactor="1"/></layoutData>
+											</VBox>
 											<Text text="WBS: {dash>wbs}" tooltip="{dash>wbs}"/>
 										</HBox>
-
 										<!-- Vertical scroll only; sticky header stays fixed while rows scroll. Columns use % widths so everything fits without a horizontal scrollbar. -->
 										<ScrollContainer horizontal="false" vertical="true" class="materialScroll">
 											<Table class="materialTable" items="{dash>detailRows}" fixedLayout="true" sticky="ColumnHeaders">
@@ -291,10 +281,11 @@
 												</items>
 											</Table>
 										</ScrollContainer>
-
 										<HBox class="subtotalRow" alignItems="Center">
 											<Text text="WBS Subtotal – {dash>wbs}"/>
-											<VBox><layoutData><FlexItemData growFactor="1"/></layoutData></VBox>
+											<VBox>
+												<layoutData><FlexItemData growFactor="1"/></layoutData>
+											</VBox>
 											<Text text="BOQ {dash>boqFmt}"/>
 											<Text text="PO {dash>poFmt}"/>
 											<Text text="Avail. {dash>availabilityFmt}"/>

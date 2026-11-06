@@ -118,12 +118,10 @@ body,
    ----------------------------------------------------------------
    card (flex item, min-width:0)
      └ ChartContainer (overflow hidden)
-         └ ScrollContainer .chartViewport  -> scrolls horizontally
-             └ HBox .chartInner  width = N * px-per-category (from model)
-                                  min-width = 100%  -> always fills the card
+     └ ScrollContainer .chartViewport  -> fixed to card width
+         └ HBox .chartInner  width = 100% (from model)
                  └ VizFrame width/height 100%
-   Few categories  -> chart fills the card, no scrollbar.
-   Many categories -> chart is wider than the card and scrolls.
+   Every category count -> chart fills the card without horizontal scrolling.
    ================================================================ */
 .chartRow {
     gap: 12px;
@@ -148,6 +146,12 @@ body,
 .chartCard .sapMTitle {
     font-size: 1rem;
     color: #20372a;
+}
+
+.chartNote {
+    color: #718078;
+    font-size: .7rem;
+    line-height: 1rem;
 }
 
 /* two cards per row; stack on narrow screens */
@@ -176,21 +180,21 @@ body,
     width: 100%;
     min-width: 0;
     max-width: 100%;
-    height: 100%;
+    height: 280px;
     box-sizing: border-box;
-    overflow-x: auto;
+    overflow-x: hidden;
     overflow-y: hidden;
 }
 
 .chartInner {
-    min-width: 100%;      /* never narrower than the card */
-    max-width: none;      /* may grow beyond the card -> scroll */
+    min-width: 100%;
+    max-width: 100%;
     height: 100%;
     box-sizing: border-box;
 }
 
 .chartInner > * {
-    flex: 1 1 100%;
+    flex: 0 0 auto;
     min-width: 0;
     height: 100%;
 }

@@ -10,10 +10,6 @@ sap.ui.define([
 ], function(Controller, JSONModel, Filter, FilterOperator, MessageToast, NumberFormat, Locale, VizPopover) {
 	"use strict";
 
-	// Pixels reserved per category. The chart grows horizontally (inside a scroll container)
-	// only when categories x this value exceed the card width; otherwise it fills the card.
-	var WBS_CATEGORY_PX = 80;
-	var MATERIAL_CATEGORY_PX = 64;
 	var SAVING_TITLE = "WBS-wise Saving";
 
 	function emptyDash(message) {
@@ -21,7 +17,8 @@ sap.ui.define([
 			kpis: [],
 			wbsGroups: [],
 			projectChartData: [],
-			projectChartWidth: "0px",
+			projectChartWidth: "100%",
+			projectSavingWidth: "100%",
 			savingChartTitle: SAVING_TITLE + " (Top 10)",
 			hasData: false,
 			emptyMessage: message
@@ -116,10 +113,9 @@ sap.ui.define([
 			this._configureVizFrame(event.getSource());
 		},
 		_configureVizFrame: function(frame) {
+			var isSaving = frame.hasStyleClass("savingViz") || frame.hasStyleClass("materialSavingViz");
 			if (!frame.data("vizConfigured")) {
-				// set the flag first: setVizProperties triggers another renderComplete
 				frame.data("vizConfigured", true);
-				var isSaving = frame.hasStyleClass("savingViz") || frame.hasStyleClass("materialSavingViz");
 				var props = {
 					title: {
 						visible: false
@@ -129,13 +125,7 @@ sap.ui.define([
 					},
 					legendGroup: {
 						layout: {
-							position: "top"
-						}
-					},
-					valueAxis: {
-						title: {
-							visible: true,
-							text: "Amount (₹ L)"
+							position: "right"
 						}
 					},
 					categoryAxis: {
@@ -143,33 +133,32 @@ sap.ui.define([
 							visible: false
 						},
 						label: {
-							visible: true
+							visible: true,
+							angle: 0
+						}
+					},
+					valueAxis: {
+						title: {
+							visible: true,
+							text: isSaving ? "Saving (₹ L)" : "Amount (₹ L)"
 						}
 					}
 				};
 				if (isSaving) {
-					// stacked column: one bar per category, coloured by sign (no empty cluster slot)
 					props.plotArea = {
 						dataLabel: {
 							visible: true,
+							hideWhenOverlap: true,
 							formatString: "#,##0.##"
 						},
 						dataPointStyle: {
 							rules: [{
-								dataContext: {
-									"Saving Type": "Positive"
-								},
-								properties: {
-									color: "#16834A"
-								},
+								dataContext: { "Saving Type": "Positive" },
+								properties: { color: "#16834A" },
 								displayName: "Saving"
 							}, {
-								dataContext: {
-									"Saving Type": "Negative"
-								},
-								properties: {
-									color: "#D64545"
-								},
+								dataContext: { "Saving Type": "Negative" },
+								properties: { color: "#D64545" },
 								displayName: "Overrun"
 							}]
 						}
@@ -193,9 +182,45 @@ sap.ui.define([
 				this.getView().addDependent(popover);
 				popover.connect(frame.getVizUid());
 			}
+			// ChartContainer moves its content into a fullscreen overlay. Keep the VizFrame
+			// dimensions in step with that content area instead of leaving the original
+			// card-sized fixed height in place.
+			if (!frame._chartResizeObserver && typeof ResizeObserver !== "undefined") {
+				var viewport = frame.getDomRef() && frame.getDomRef().closest(".chartViewport");
+				var containerDom = frame.getDomRef() && frame.getDomRef().closest(".suiteChartContainer");
+				if (viewport && containerDom) {
+					var observer = new ResizeObserver(function() {
+						var fullHeight = containerDom.clientHeight;
+						if (fullHeight > 380) {
+							viewport.style.height = Math.max(280, fullHeight - 60) + "px";
+						} else {
+							viewport.style.height = "280px";
+						}
+						var width = viewport.clientWidth;
+						var height = viewport.clientHeight;
+						if (width > 0 && height > 0) {
+							frame.setWidth(Math.max(width, frame.getDomRef().parentNode.clientWidth) + "px");
+							frame.setHeight(height + "px");
+						}
+					});
+					observer.observe(containerDom);
+					frame._chartResizeObserver = observer;
+				}
+			}
 		},
-		_chartContentWidth: function(categoryCount, perCategory) {
-			return Math.max(1, categoryCount) * perCategory + "px";
+		_chartContentWidth: function() {
+			// Keep the plot fitted to its card for every data count; category spacing is
+			// handled by the chart renderer rather than a wider, horizontally scrolled frame.
+			return "100%";
+		},
+		onExit: function() {
+			this.getView().findAggregatedObjects(true, function(control) {
+				var observer = control._chartResizeObserver;
+				if (observer) {
+					observer.disconnect();
+				}
+				return false;
+			});
 		},
 		_chartLabel: function(value) {
 			var label = String(value || "");
@@ -400,11 +425,12 @@ sap.ui.define([
 				var materialData = group.materials.slice().sort(function(a, b) {
 					return b.saving - a.saving || a.label.localeCompare(b.label);
 				}).map(function(item) {
+					var savingLakhs = item.saving / 100000;
 					return {
 						label: self._chartLabel(item.label),
 						boqLakhs: item.boq / 100000,
 						poLakhs: item.po / 100000,
-						savingLakhs: item.saving / 100000,
+						savingLakhs: savingLakhs,
 						savingType: item.saving < 0 ? "Negative" : "Positive"
 					};
 				});
@@ -429,7 +455,8 @@ sap.ui.define([
 					availabilityFmt: self._money(group.availability),
 					savingFmt: self._money(group.saving),
 					savingState: group.saving < 0 ? "Error" : "Success",
-					chartWidth: self._chartContentWidth(materialData.length, MATERIAL_CATEGORY_PX),
+					chartWidth: self._chartContentWidth(),
+					savingChartWidth: "100%",
 					materialChartData: materialData,
 					detailRows: detailRows
 				});
@@ -454,9 +481,10 @@ sap.ui.define([
 			var limit = this._topCount || 10;
 			var chartGroups = limit === "all" ? sorted : sorted.slice(0, limit);
 			var chartData = chartGroups.map(function(group) {
+				var savingLakhs = group.saving / 100000;
 				return {
-					label: group.wbs,
-					savingLakhs: group.saving / 100000,
+					label: self._chartLabel(group.wbs),
+					savingLakhs: savingLakhs,
 					savingType: group.saving < 0 ? "Negative" : "Positive",
 					boqLakhs: group.boq / 100000,
 					poLakhs: group.po / 100000
@@ -507,7 +535,8 @@ sap.ui.define([
 				}],
 				wbsGroups: displayGroups,
 				projectChartData: chartData,
-				projectChartWidth: this._chartContentWidth(chartData.length, WBS_CATEGORY_PX),
+				projectChartWidth: this._chartContentWidth(),
+				projectSavingWidth: "100%",
 				savingChartTitle: SAVING_TITLE + " (" + (limit === "all" ? "All" : "Top " + limit) + ")",
 				hasData: rows.length > 0,
 				emptyMessage: rows.length ? "" : "No data found for this project."
@@ -531,6 +560,16 @@ sap.ui.define([
 					original.expanded = group.expanded;
 				}
 				this._dash().setProperty(context.getPath() + "/expanded", group.expanded);
+				if (group.expanded) {
+					var block = event.getSource().getParent().getParent();
+					window.requestAnimationFrame(function() {
+						block.findAggregatedObjects(true, function(control) {
+							return control.isA && control.isA("sap.viz.ui5.controls.VizFrame");
+						}).forEach(function(frame) {
+							frame.invalidate();
+						});
+					});
+				}
 			}
 		},
 		onExpandAll: function() {
