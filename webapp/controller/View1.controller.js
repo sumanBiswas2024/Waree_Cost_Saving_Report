@@ -283,9 +283,8 @@ sap.ui.define([
 				this._setStatus("Enter a project ID to load project data.", "Information");
 				return;
 			}
-			var localDataMode = this._isLocalDataMode(sProject);
 			var oModel = this.getOwnerComponent().getModel();
-			if (!localDataMode && !oModel) {
+			if (!oModel) {
 				this._setStatus("The project data service is unavailable.", "Error");
 				return;
 			}
@@ -294,8 +293,7 @@ sap.ui.define([
 			this._setStatus("Loading project " + sProject + "…", "Information");
 			this.getView().setBusy(true);
 
-			var readPromise = localDataMode ? this._readLocalData(sProject) :
-				this._readAll(oModel, [new Filter("PROJ_PSPNR", FilterOperator.EQ, sProject)]);
+			var readPromise = this._readAll(oModel, [new Filter("PROJ_PSPNR", FilterOperator.EQ, sProject)]);
 
 			readPromise.then(function(rows) {
 				this._renderData(rows);
@@ -316,24 +314,6 @@ sap.ui.define([
 					MessageToast.show(message);
 				}
 			}.bind(this));
-		},
-		_isLocalDataMode: function(projectId) {
-			return projectId === "M-G-JSWR-25-010" || /(?:\?|&)dataSource=local(?:&|$)/i.test(window.location.search || "");
-		},
-		_readLocalData: function(projectId) {
-			return new Promise(function(resolve, reject) {
-				jQuery.ajax({
-					url: sap.ui.require.toUrl("Z_Cost_Saving_Report/localService/ZCOST_SAVING_SRV/sample-data.json"),
-					dataType: "json",
-					success: function(payload) {
-						var rows = payload && payload.d && payload.d.results || [];
-						resolve(rows.filter(function(row) {
-							return row.PROJ_PSPNR === projectId;
-						}));
-					},
-					error: reject
-				});
-			});
 		},
 		_readBackendError: function(error) {
 			var body = error && (error.responseJSON || error.response && error.response.responseJSON);
