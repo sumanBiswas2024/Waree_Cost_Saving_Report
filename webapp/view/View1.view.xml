@@ -56,7 +56,11 @@
 									</Select>
 								</HBox>
 								<Text class="chartNote" text="Saving and overrun by WBS; hover for the amount."/>
-								<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false" autoAdjustHeight="false">
+								<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showZoom="false" showPersonalization="false" autoAdjustHeight="false">
+									<suite:customIcons>
+										<core:Icon src="sap-icon://zoom-in" tooltip="Zoom in" press="onChartZoomIn"/>
+										<core:Icon src="sap-icon://zoom-out" tooltip="Zoom out" press="onChartZoomOut"/>
+									</suite:customIcons>
 									<suite:content>
 										<suite:ChartContainerContent icon="sap-icon://vertical-bar-chart" title="WBS Saving">
 											<suite:content>
@@ -65,7 +69,7 @@
 													<viz:VizFrame class="savingViz" vizType="bar" width="{dash>/projectSavingWidth}" height="270px"
 															uiConfig="{applicationSet:'fiori'}" renderComplete="onChartRenderComplete">
 															<viz:dataset>
-																<viz.data:FlattenedDataset data="{dash>/projectChartData}">
+											<viz.data:FlattenedDataset data="{dash>/projectSavingData}">
 																	<viz.data:dimensions>
 																		<viz.data:DimensionDefinition name="WBS" value="{dash>label}"/>
 																		<viz.data:DimensionDefinition name="Saving Type" value="{dash>savingType}"/>
@@ -90,7 +94,11 @@
 							</VBox>
 							<VBox class="chartCard compareChart">
 								<HBox alignItems="Center"><Title text="BOQ vs PO Amount (WBS Wise)" level="H3"/></HBox>
-								<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false" autoAdjustHeight="false">
+				<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showZoom="false" showPersonalization="false" autoAdjustHeight="false">
+					<suite:customIcons>
+						<core:Icon src="sap-icon://zoom-in" tooltip="Zoom in" press="onChartZoomIn"/>
+						<core:Icon src="sap-icon://zoom-out" tooltip="Zoom out" press="onChartZoomOut"/>
+					</suite:customIcons>
 									<suite:content>
 										<suite:ChartContainerContent icon="sap-icon://bar-chart" title="WBS BOQ vs PO">
 											<suite:content>
@@ -172,7 +180,11 @@
 										<HBox class="wbsCharts" wrap="NoWrap">
 											<VBox class="chartCard materialChart">
 												<Title text="Material-wise BOQ vs PO (₹ L)" level="H3"/>
-												<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false" autoAdjustHeight="false">
+										<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showZoom="false" showPersonalization="false" autoAdjustHeight="false">
+											<suite:customIcons>
+												<core:Icon src="sap-icon://zoom-in" tooltip="Zoom in" press="onChartZoomIn"/>
+												<core:Icon src="sap-icon://zoom-out" tooltip="Zoom out" press="onChartZoomOut"/>
+										</suite:customIcons>
 													<suite:content>
 														<suite:ChartContainerContent icon="sap-icon://bar-chart" title="Material BOQ and PO">
 															<suite:content>
@@ -206,7 +218,11 @@
 											<VBox class="chartCard materialChart">
 												<Title text="Material-wise Saving (₹ L)" level="H3"/>
 										<Text class="chartNote" text="Saving and overrun by material; hover for the amount."/>
-												<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showPersonalization="false" autoAdjustHeight="false">
+										<suite:ChartContainer class="suiteChartContainer" width="100%" showFullScreen="true" showZoom="false" showPersonalization="false" autoAdjustHeight="false">
+											<suite:customIcons>
+												<core:Icon src="sap-icon://zoom-in" tooltip="Zoom in" press="onChartZoomIn"/>
+												<core:Icon src="sap-icon://zoom-out" tooltip="Zoom out" press="onChartZoomOut"/>
+										</suite:customIcons>
 													<suite:content>
 														<suite:ChartContainerContent icon="sap-icon://vertical-bar-chart" title="Material Saving">
 															<suite:content>

@@ -16,6 +16,7 @@ sap.ui.define([
 		return {
 			kpis: [],
 			wbsGroups: [],
+			projectSavingData: [],
 			projectChartData: [],
 			projectChartWidth: "100%",
 			projectSavingWidth: "100%",
@@ -112,6 +113,29 @@ sap.ui.define([
 		onChartRenderComplete: function(event) {
 			this._configureVizFrame(event.getSource());
 		},
+		onChartZoomIn: function(event) {
+			this._zoomChart(event.getSource(), "in");
+		},
+		onChartZoomOut: function(event) {
+			this._zoomChart(event.getSource(), "out");
+		},
+		_zoomChart: function(container, direction) {
+			var chartContainer = container.getSource ? container.getSource() : container;
+			while (chartContainer && !(chartContainer.isA && chartContainer.isA("sap.suite.ui.commons.ChartContainer"))) {
+				chartContainer = chartContainer.getParent && chartContainer.getParent();
+			}
+			if (!chartContainer) {
+				return;
+			}
+			var frames = chartContainer.findAggregatedObjects(true, function(control) {
+				return control.isA && control.isA("sap.viz.ui5.controls.VizFrame");
+			});
+			if (frames.length && typeof frames[0].zoom === "function") {
+				frames[0].zoom({
+					direction: direction
+				});
+			}
+		},
 		_configureVizFrame: function(frame) {
 			var isSaving = frame.hasStyleClass("savingViz") || frame.hasStyleClass("materialSavingViz");
 			if (!frame.data("vizConfigured")) {
@@ -148,8 +172,9 @@ sap.ui.define([
 					props.plotArea = {
 						dataLabel: {
 							visible: true,
-							hideWhenOverlap: true,
-							formatString: "#,##0.##"
+							hideWhenOverlap: false,
+							position: "outside",
+							formatString: "#,##0.0"
 						},
 						dataPointStyle: {
 							rules: [{
@@ -167,9 +192,9 @@ sap.ui.define([
 					props.plotArea = {
 						dataLabel: {
 							visible: true,
-							hideWhenOverlap: true,
+							hideWhenOverlap: false,
 							position: "outside",
-							formatString: "#,##0.#"
+							formatString: "#,##0.0"
 						},
 						colorPalette: ["#F39A22", "#16834A"]
 					};
@@ -199,7 +224,7 @@ sap.ui.define([
 						var width = viewport.clientWidth;
 						var height = viewport.clientHeight;
 						if (width > 0 && height > 0) {
-							frame.setWidth(Math.max(width, frame.getDomRef().parentNode.clientWidth) + "px");
+							frame.setWidth(width + "px");
 							frame.setHeight(height + "px");
 						}
 					});
@@ -494,16 +519,20 @@ sap.ui.define([
 			});
 			var limit = this._topCount || 10;
 			var chartGroups = limit === "all" ? sorted : sorted.slice(0, limit);
-			var chartData = chartGroups.map(function(group) {
-				var savingLakhs = group.saving / 100000;
-				return {
-					label: self._chartLabel(group.wbs),
-					savingLakhs: savingLakhs,
-					savingType: group.saving < 0 ? "Negative" : "Positive",
-					boqLakhs: group.boq / 100000,
-					poLakhs: group.po / 100000
-				};
-			});
+			function chartRowsFor(groups) {
+				return groups.map(function(group) {
+					var savingLakhs = group.saving / 100000;
+					return {
+						label: self._chartLabel(group.wbs),
+						savingLakhs: savingLakhs,
+						savingType: group.saving < 0 ? "Negative" : "Positive",
+						boqLakhs: group.boq / 100000,
+						poLakhs: group.po / 100000
+					};
+				});
+			}
+			var savingChartData = chartRowsFor(chartGroups);
+			var allWbsChartData = chartRowsFor(sorted);
 
 			this._dash().setData({
 				kpis: [{
@@ -548,7 +577,8 @@ sap.ui.define([
 					icon: "sap-icon://trend-up"
 				}],
 				wbsGroups: displayGroups,
-				projectChartData: chartData,
+				projectSavingData: savingChartData,
+				projectChartData: allWbsChartData,
 				projectChartWidth: this._chartContentWidth(),
 				projectSavingWidth: "100%",
 				savingChartTitle: SAVING_TITLE + " (" + (limit === "all" ? "All" : "Top " + limit) + ")",
