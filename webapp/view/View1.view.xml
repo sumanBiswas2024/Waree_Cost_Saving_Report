@@ -32,17 +32,30 @@
 						<!-- KPIs -->
 						<HBox class="kpiRow" wrap="Wrap" items="{dash>/kpis}">
 							<items>
-								<VBox class="kpiCard">
-									<HBox alignItems="Center" justifyContent="SpaceBetween">
-										<Text text="{dash>label}"/>
-										<core:Icon src="{dash>icon}"/>
-									</HBox>
-									<ObjectNumber number="{dash>value}" state="{dash>state}" class="kpiValue"/>
-									<Text text="{dash>sub}"/>
-									<Button text="View all WBS-wise savings" type="Transparent" class="kpiCardHitArea"
-										tooltip="Click to view all WBS-wise savings" press="onKpiPress"
-										visible="{= ${dash>label} === 'Total Saving' }"/>
-								</VBox>
+								<HBox class="kpiCardItem" width="auto" alignItems="Stretch">
+									<VBox class="kpiCard" width="100%" visible="{= ${dash>label} !== 'Total Saving' }">
+										<HBox alignItems="Center" justifyContent="SpaceBetween">
+											<Text text="{dash>label}"/>
+											<core:Icon src="{dash>icon}"/>
+										</HBox>
+										<ObjectNumber number="{dash>value}" state="{dash>state}" class="kpiValue"/>
+										<Text text="{dash>sub}"/>
+									</VBox>
+									<CustomTile class="kpiPressTile kpiCard" press="onKpiPress"
+										tooltip="Click to view all WBS-wise savings"
+										visible="{= ${dash>label} === 'Total Saving' }">
+										<content>
+											<VBox class="kpiCardContent">
+												<HBox alignItems="Center" justifyContent="SpaceBetween">
+													<Text text="{dash>label}"/>
+													<core:Icon src="{dash>icon}"/>
+												</HBox>
+												<ObjectNumber number="{dash>value}" state="{dash>state}" class="kpiValue"/>
+												<Text text="{dash>sub}"/>
+											</VBox>
+										</content>
+									</CustomTile>
+								</HBox>
 							</items>
 						</HBox>
 						<Dialog id="allSavingDialog" title="WBS-wise Saving" contentWidth="90%" contentHeight="80%"
