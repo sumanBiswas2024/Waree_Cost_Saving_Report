@@ -39,9 +39,54 @@
 									</HBox>
 									<ObjectNumber number="{dash>value}" state="{dash>state}" class="kpiValue"/>
 									<Text text="{dash>sub}"/>
+									<Button text="View all WBS-wise savings" type="Transparent" class="kpiCardHitArea"
+										tooltip="Click to view all WBS-wise savings" press="onKpiPress"
+										visible="{= ${dash>label} === 'Total Saving' }"/>
 								</VBox>
 							</items>
 						</HBox>
+						<Dialog id="allSavingDialog" title="WBS-wise Saving" contentWidth="90%" contentHeight="80%"
+							stretchOnPhone="true" draggable="true" resizable="true">
+							<content>
+								<suite:ChartContainer class="suiteChartContainer allWbsSavingContainer" width="100%"
+									showFullScreen="true" showZoom="false" showPersonalization="false" autoAdjustHeight="false">
+									<suite:customIcons>
+										<core:Icon src="sap-icon://zoom-in" tooltip="Zoom in" press="onChartZoomIn"/>
+										<core:Icon src="sap-icon://zoom-out" tooltip="Zoom out" press="onChartZoomOut"/>
+									</suite:customIcons>
+									<suite:content>
+										<suite:ChartContainerContent icon="sap-icon://vertical-bar-chart" title="All WBS Saving">
+											<suite:content>
+												<ScrollContainer class="chartViewport allWbsSavingViewport" horizontal="false" vertical="false" width="100%" height="68vh">
+													<HBox class="chartInner" width="100%" height="100%">
+														<viz:VizFrame class="allWbsSavingViz" vizType="column" width="100%" height="66vh"
+															uiConfig="{applicationSet:'fiori'}" renderComplete="onChartRenderComplete">
+															<viz:dataset>
+																<viz.data:FlattenedDataset data="{dash>/allWbsSavingData}">
+																	<viz.data:dimensions>
+																		<viz.data:DimensionDefinition name="WBS" value="{dash>label}"/>
+																		<viz.data:DimensionDefinition name="Saving Type" value="{dash>savingType}"/>
+																	</viz.data:dimensions>
+																	<viz.data:measures>
+																<viz.data:MeasureDefinition name="Saving (₹ L)" value="{dash>savingLakhs}"/>
+																	</viz.data:measures>
+																</viz.data:FlattenedDataset>
+															</viz:dataset>
+															<viz:feeds>
+																<viz.feeds:FeedItem uid="categoryAxis" type="Dimension" values="WBS"/>
+																<viz.feeds:FeedItem uid="color" type="Dimension" values="Saving Type"/>
+																<viz.feeds:FeedItem uid="valueAxis" type="Measure" values="Saving (₹ L)"/>
+													</viz:feeds>
+													</viz:VizFrame>
+													</HBox>
+												</ScrollContainer>
+										</suite:content>
+									</suite:ChartContainerContent>
+									</suite:content>
+								</suite:ChartContainer>
+							</content>
+							<endButton><Button text="Close" press="onCloseSavingChart"/></endButton>
+						</Dialog>
 						<!-- Project level charts -->
 						<HBox class="chartRow" wrap="Wrap">
 							<VBox class="chartCard savingChart">

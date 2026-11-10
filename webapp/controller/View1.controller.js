@@ -19,6 +19,7 @@ sap.ui.define([
 			kpis: [],
 			wbsGroups: [],
 			projectSavingData: [],
+			allWbsSavingData: [],
 			projectChartData: [],
 			projectChartWidth: "100%",
 			projectSavingWidth: "100%",
@@ -111,6 +112,19 @@ sap.ui.define([
 		onGo: function() {
 			this._loadProject(this.byId("projectInput").getValue());
 		},
+		onKpiPress: function(event) {
+			var context = event.getSource().getBindingContext("dash");
+			if (!context || context.getProperty("label") !== "Total Saving") { return; }
+			if (!this._dash().getProperty("/allWbsSavingData").length) {
+				MessageToast.show("There are no non-zero WBS saving amounts to chart.");
+				return;
+			}
+			this.byId("allSavingDialog").open();
+			this._resizeVisibleCharts();
+		},
+		onCloseSavingChart: function() {
+			this.byId("allSavingDialog").close();
+		},
 		onRefresh: function() {
 			this._loadProject(this.byId("projectInput").getValue());
 		},
@@ -136,14 +150,12 @@ sap.ui.define([
 					growingThreshold: 100,
 					rememberSelections: false,
 					items: {
-						path: "/ZWBSF4",
-						parameters: { select: "WBS" },
-						template: new StandardListItem({ title: "{WBS}", type: "Active" })
+						path: "projectHelp>/WBSList",
+						template: new StandardListItem({ title: "{projectHelp>WBS}", type: "Active" })
 					},
-					search: function(event) { this._filterProjectHelp(event.getParameter("value") || event.getParameter("query") || ""); }.bind(this),
+					search: function(event) { this._filterProjectHelp(event.getParameter("value") || "", event.getParameter("itemsBinding")); }.bind(this),
 					liveChange: function(event) {
-						var query = event.getParameter("newValue");
-						if (query === undefined) { query = event.getParameter("value"); }
+						var query = event.getParameter("value") || "";
 						clearTimeout(this._projectHelpSearchTimer);
 						this._projectHelpSearchTimer = setTimeout(function() {
 							this._filterProjectHelp(query || "");
@@ -157,30 +169,51 @@ sap.ui.define([
 						}
 					}.bind(this)
 				});
-				dialog.setModel(model);
+				dialog.setModel(new JSONModel({ WBSList: [] }), "projectHelp");
 				this.getView().addDependent(dialog);
 				this._projectHelpDialog = dialog;
-				var itemsBinding = dialog.getBinding("items");
-				if (itemsBinding && itemsBinding.attachDataReceived) {
-					itemsBinding.attachDataReceived(function(event) {
-						var parameters = event.getParameters();
-						if (parameters.error) {
-							var details = this._readBackendError(parameters.error);
-							var message = details.message || "Could not load project choices. Check the service and try again.";
-							this._setStatus(message, "Error");
-							MessageToast.show(message);
-						}
-					}.bind(this));
-				}
 			}
-			this._projectHelpDialog.open();
+			clearTimeout(this._projectHelpSearchTimer);
+			this._filterProjectHelp("");
+			this._projectHelpDialog.open("");
+			if (!this._projectChoicesLoaded && !this._projectChoicesLoading) {
+				this._loadProjectChoices(model);
+			}
 		},
-		_filterProjectHelp: function(query) {
-			var binding = this._projectHelpDialog && this._projectHelpDialog.getBinding("items");
+		_loadProjectChoices: function(model) {
+			this._projectChoicesLoading = true;
+			this._projectHelpDialog.setBusy(true);
+			model.read("/ZWBSF4", {
+				urlParameters: { "$select": "WBS" },
+				success: function(data) {
+					var seen = Object.create(null),
+						items = (data.results || []).reduce(function(result, row) {
+							var value = (row.WBS || "").trim();
+							if (value && !seen[value]) {
+								seen[value] = true;
+								result.push({ WBS: value });
+							}
+							return result;
+						}, []);
+					this._projectHelpDialog.getModel("projectHelp").setProperty("/WBSList", items);
+					this._projectChoicesLoaded = true;
+					this._projectChoicesLoading = false;
+					this._projectHelpDialog.setBusy(false);
+				}.bind(this),
+				error: function(error) {
+					this._projectChoicesLoading = false;
+					this._projectHelpDialog.setBusy(false);
+					var details = this._readBackendError(error);
+					var message = details.message || "Could not load project choices. Check the service and try again.";
+					this._setStatus(message, "Error");
+					MessageToast.show(message);
+				}.bind(this)
+			});
+		},
+		_filterProjectHelp: function(query, binding) {
+			binding = binding || (this._projectHelpDialog && this._projectHelpDialog.getBinding("items"));
 			if (!binding) { return; }
 			query = (query || "").trim();
-			if (query === this._lastProjectHelpQuery) { return; }
-			this._lastProjectHelpQuery = query;
 			var filters = query ? [new Filter("WBS", FilterOperator.Contains, query)] : [];
 			binding.filter(filters);
 		},
@@ -218,7 +251,8 @@ sap.ui.define([
 			}
 		},
 		_configureVizFrame: function(frame) {
-			var isSaving = frame.hasStyleClass("savingViz") || frame.hasStyleClass("materialSavingViz");
+			var isSaving = frame.hasStyleClass("savingViz") || frame.hasStyleClass("materialSavingViz") ||
+				frame.hasStyleClass("allWbsSavingViz");
 			if (!frame.data("vizConfigured")) {
 				frame.data("vizConfigured", true);
 				var props = {
@@ -353,6 +387,12 @@ sap.ui.define([
 				return segments.slice(-2).join("-");
 			}
 			return label.length > 18 ? label.slice(0, 15) + "…" : label;
+		},
+		_wbsChartLabel: function(value) {
+			var label = String(value || "").trim(),
+				segments = label.split("-"),
+				code = segments[segments.length - 1];
+			return code || label;
 		},
 
 		/* ============================================================ */
@@ -576,13 +616,16 @@ sap.ui.define([
 			var sorted = groups.slice().sort(function(a, b) {
 				return b.saving - a.saving || a.wbs.localeCompare(b.wbs);
 			});
+			var allSavingGroups = (this._allWbs || groups).slice().sort(function(a, b) {
+				return b.saving - a.saving || a.wbs.localeCompare(b.wbs);
+			});
 			var limit = this._topCount || 10;
 			var chartGroups = limit === "all" ? sorted : sorted.slice(0, limit);
 			function chartRowsFor(groups) {
 				return groups.map(function(group) {
 					var savingLakhs = group.saving / 100000;
 					return {
-						label: self._chartLabel(group.wbs),
+						label: self._wbsChartLabel(group.wbs),
 						savingLakhs: savingLakhs,
 						savingType: group.saving < 0 ? "Negative" : "Positive",
 						boqLakhs: group.boq / 100000,
@@ -592,6 +635,9 @@ sap.ui.define([
 			}
 			var savingChartData = chartRowsFor(chartGroups);
 			var allWbsChartData = chartRowsFor(sorted);
+			var allWbsSavingData = chartRowsFor(allSavingGroups.filter(function(group) {
+				return self._num(group.saving) !== 0;
+			}));
 
 			this._dash().setData({
 				kpis: [{
@@ -645,6 +691,7 @@ sap.ui.define([
 				}],
 				wbsGroups: displayGroups,
 				projectSavingData: savingChartData,
+				allWbsSavingData: allWbsSavingData,
 				projectChartData: allWbsChartData,
 				projectChartWidth: this._chartContentWidth(),
 				projectSavingWidth: "100%",
