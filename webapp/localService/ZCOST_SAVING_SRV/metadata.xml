@@ -28,8 +28,15 @@
                 <Property Name="AVAILABILITY" Type="Edm.Decimal" Nullable="false" Precision="23" Scale="2" sap:unicode="false" sap:label="Amount in LC" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
                 <Property Name="SAVING" Type="Edm.Decimal" Nullable="false" Precision="23" Scale="2" sap:unicode="false" sap:label="Amount in LC" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
             </EntityType>
+            <EntityType Name="WBSF4" sap:content-version="1">
+                <Key>
+                    <PropertyRef Name="WBS"/>
+                </Key>
+                <Property Name="WBS" Type="Edm.String" Nullable="false" MaxLength="24" sap:unicode="false" sap:label="WBS"/>
+            </EntityType>
             <EntityContainer Name="ZCOST_SAVING_SRV_Entities" m:IsDefaultEntityContainer="true" sap:supported-formats="atom json xlsx">
                 <EntitySet Name="ZCOST_SAVING_DDIC_TYPESet" EntityType="ZCOST_SAVING_SRV.ZCOST_SAVING_DDIC_TYPE" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:pageable="false" sap:content-version="1"/>
+                <EntitySet Name="ZWBSF4" EntityType="ZCOST_SAVING_SRV.WBSF4" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:pageable="false" sap:addressable="false" sap:content-version="1"/>
             </EntityContainer>
             <Annotation
                 xmlns="http://docs.oasis-open.org/odata/ns/edm" Term="Core.SchemaVersion" String="1.0.0"/>

@@ -102,10 +102,20 @@ body,
     font-size: 1.15rem;
 }
 
-.kpiCard .sapMTitle {
+.kpiCard .kpiValue {
     color: #26352b;
     font-size: 1.18rem;
     white-space: nowrap;
+}
+
+.kpiCard .kpiValue .sapMObjectNumberText,
+.kpiCard .kpiValue .sapMObjectNumberUnit {
+    font-size: inherit;
+}
+
+.kpiCard .kpiValue.sapMObjectNumberStatusError .sapMObjectNumberText,
+.kpiCard .kpiValue.sapMObjectNumberStatusError .sapMObjectNumberUnit {
+    color: #bb0000 !important;
 }
 
 .kpiCard .sapMText:last-child {

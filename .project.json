@@ -17,7 +17,7 @@
     {
       "templateId": "servicecatalog.connectivityComponent",
       "templateVersion": "0.0.0",
-      "dateTimeStamp": "Mon, 02 Nov 2026 12:38:10 GMT"
+      "dateTimeStamp": "Fri, 06 Nov 2026 10:18:52 GMT"
     }
   ],
   "translation": {
@@ -40,12 +40,12 @@
     "blockPushLevel": "Error"
   },
   "build": {
-    "buildRequired": true,
+    "buildRequired": false,
     "sourceFolder": "webapp",
     "targetFolder": "dist",
     "excludedFolders": [],
     "excludedFiles": [],
-    "lastBuildDateTime": "Tue, 03 Nov 2026 10:54:13 GMT"
+    "lastBuildDateTime": "Tue, 10 Nov 2026 07:08:45 GMT"
   },
   "mockpreview": {
     "mockUri": "/sap/opu/odata/sap/ZCOST_SAVING_SRV",

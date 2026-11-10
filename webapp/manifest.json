@@ -54,13 +54,13 @@
 			"libs": {
 				"sap.collaboration": {},
 				"sap.m": {},
+				"sap.suite.ui.commons": {},
 				"sap.ui.comp": {},
 				"sap.ui.core": {},
 				"sap.ui.layout": {},
 				"sap.ushell": {},
 				"sap.uxap": {},
-				"sap.viz": {},
-				"sap.suite.ui.commons": {}
+				"sap.viz": {}
 			}
 		},
 		"contentDensities": {

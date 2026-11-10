@@ -20,7 +20,7 @@
 						<!-- Project bar -->
 						<HBox class="projectBar" alignItems="Center" wrap="Wrap">
 							<Label text="Project"/>
-							<Input id="projectInput" placeholder="Enter Project ID" width="22rem" showValueHelp="true" valueHelpRequest="onProjectHelp" submit="onGo"/>
+							<Input id="projectInput" placeholder="Enter Project ID" maxLength="24" width="22rem" showValueHelp="true" valueHelpRequest="onProjectHelp" submit="onGo"/>
 							<Button text="Go" type="Emphasized" press="onGo"/>
 							<Button text="Reset" press="onReset"/>
 							<VBox>
@@ -37,7 +37,7 @@
 										<Text text="{dash>label}"/>
 										<core:Icon src="{dash>icon}"/>
 									</HBox>
-									<Title text="{dash>value}" level="H2"/>
+									<ObjectNumber number="{dash>value}" state="{dash>state}" class="kpiValue"/>
 									<Text text="{dash>sub}"/>
 								</VBox>
 							</items>

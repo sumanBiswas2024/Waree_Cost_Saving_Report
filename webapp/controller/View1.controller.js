@@ -6,8 +6,10 @@ sap.ui.define([
 	"sap/m/MessageToast",
 	"sap/ui/core/format/NumberFormat",
 	"sap/ui/core/Locale",
-	"sap/viz/ui5/controls/Popover"
-], function(Controller, JSONModel, Filter, FilterOperator, MessageToast, NumberFormat, Locale, VizPopover) {
+	"sap/viz/ui5/controls/Popover",
+	"sap/m/SelectDialog",
+	"sap/m/StandardListItem"
+], function(Controller, JSONModel, Filter, FilterOperator, MessageToast, NumberFormat, Locale, VizPopover, SelectDialog, StandardListItem) {
 	"use strict";
 
 	var SAVING_TITLE = "WBS-wise Saving";
@@ -62,6 +64,25 @@ sap.ui.define([
 			this._visibleWbs = [];
 			this._filteredRows = [];
 		},
+		_validateProject: function(projectId) {
+			var input = this.byId("projectInput"),
+				value = (projectId || "").trim();
+			input.setValueState("None");
+			input.setValueStateText("");
+			if (!value) {
+				input.setValueState("Error");
+				input.setValueStateText("Select or enter a project ID.");
+				this._setStatus("Select or enter a project ID before choosing Go.", "Error");
+				return null;
+			}
+			if (value.length > 24) {
+				input.setValueState("Error");
+				input.setValueStateText("Project ID must be 24 characters or fewer.");
+				this._setStatus("Project ID must be 24 characters or fewer.", "Error");
+				return null;
+			}
+			return value;
+		},
 		_num: function(value) {
 			return Number(value) || 0;
 		},
@@ -94,14 +115,74 @@ sap.ui.define([
 			this._loadProject(this.byId("projectInput").getValue());
 		},
 		onReset: function() {
-			this.byId("projectInput").setValue("");
+			this.byId("projectInput").setValue("").setValueState("None").setValueStateText("");
 			this._resetState();
 			this._dash().setData(emptyDash("No project data. Enter a project ID and choose Go."));
 			this._setStatus("Enter a project ID and choose Go.", "Information");
 			this.byId("refreshText").setText("Last Refreshed: —");
 		},
 		onProjectHelp: function() {
-			MessageToast.show("Enter a project ID and choose Go.");
+			var model = this.getOwnerComponent().getModel();
+			if (!model) {
+				var unavailable = "The project value help service is unavailable.";
+				this._setStatus(unavailable, "Error");
+				MessageToast.show(unavailable);
+				return;
+			}
+			if (!this._projectHelpDialog) {
+				var dialog = new SelectDialog({
+					title: "Select Project",
+					noDataText: "No projects are available.",
+					growingThreshold: 100,
+					rememberSelections: false,
+					items: {
+						path: "/ZWBSF4",
+						parameters: { select: "WBS" },
+						template: new StandardListItem({ title: "{WBS}", type: "Active" })
+					},
+					search: function(event) { this._filterProjectHelp(event.getParameter("value") || event.getParameter("query") || ""); }.bind(this),
+					liveChange: function(event) {
+						var query = event.getParameter("newValue");
+						if (query === undefined) { query = event.getParameter("value"); }
+						clearTimeout(this._projectHelpSearchTimer);
+						this._projectHelpSearchTimer = setTimeout(function() {
+							this._filterProjectHelp(query || "");
+						}.bind(this), 300);
+					}.bind(this),
+					confirm: function(event) {
+						var item = event.getParameter("selectedItem");
+						if (item) {
+							this.byId("projectInput").setValue(item.getTitle()).setValueState("None");
+							this._loadProject(item.getTitle());
+						}
+					}.bind(this)
+				});
+				dialog.setModel(model);
+				this.getView().addDependent(dialog);
+				this._projectHelpDialog = dialog;
+				var itemsBinding = dialog.getBinding("items");
+				if (itemsBinding && itemsBinding.attachDataReceived) {
+					itemsBinding.attachDataReceived(function(event) {
+						var parameters = event.getParameters();
+						if (parameters.error) {
+							var details = this._readBackendError(parameters.error);
+							var message = details.message || "Could not load project choices. Check the service and try again.";
+							this._setStatus(message, "Error");
+							MessageToast.show(message);
+						}
+					}.bind(this));
+				}
+			}
+			this._projectHelpDialog.open();
+		},
+		_filterProjectHelp: function(query) {
+			var binding = this._projectHelpDialog && this._projectHelpDialog.getBinding("items");
+			if (!binding) { return; }
+			query = (query || "").trim();
+			if (query === this._lastProjectHelpQuery) { return; }
+			this._lastProjectHelpQuery = query;
+			var filters = query ? [new Filter("WBS", FilterOperator.Contains, query)] : [];
+			binding.filter(filters);
 		},
 
 		/* ============================================================ */
@@ -278,11 +359,8 @@ sap.ui.define([
 		/* Data loading                                                 */
 		/* ============================================================ */
 		_loadProject: function(projectId) {
-			var sProject = (projectId || "").trim();
-			if (!sProject) {
-				this._setStatus("Enter a project ID to load project data.", "Information");
-				return;
-			}
+			var sProject = this._validateProject(projectId);
+			if (!sProject) { return; }
 			var oModel = this.getOwnerComponent().getModel();
 			if (!oModel) {
 				this._setStatus("The project data service is unavailable.", "Error");
@@ -291,6 +369,7 @@ sap.ui.define([
 			this._resetState();
 			this._dash().setData(emptyDash("Loading project data…"));
 			this._setStatus("Loading project " + sProject + "…", "Information");
+			this.byId("projectInput").setValueState("None");
 			this.getView().setBusy(true);
 
 			var readPromise = this._readAll(oModel, [new Filter("PROJ_PSPNR", FilterOperator.EQ, sProject)]);
@@ -518,41 +597,49 @@ sap.ui.define([
 				kpis: [{
 					label: "Total WBS",
 					value: groups.length,
+					state: "None",
 					sub: "Distinct WBS elements",
 					icon: "sap-icon://org-chart"
 				}, {
 					label: "Total Materials",
 					value: rows.length,
+					state: "None",
 					sub: "Material / service records",
 					icon: "sap-icon://product"
 				}, {
 					label: "Original BBU",
 					value: this._money(first.ORGINAL_BBU_AMOUNT),
+					state: this._num(first.ORGINAL_BBU_AMOUNT) < 0 ? "Error" : "None",
 					sub: "Backend value",
 					icon: "sap-icon://database"
 				}, {
 					label: "Updated BBU",
 					value: this._money(first.UPDATED_BBU_AMOUNT),
+					state: this._num(first.UPDATED_BBU_AMOUNT) < 0 ? "Error" : "None",
 					sub: "Backend value",
 					icon: "sap-icon://database"
 				}, {
 					label: "BOQ Amount",
 					value: this._money(totals.boq),
+					state: totals.boq < 0 ? "Error" : "None",
 					sub: "Material records",
 					icon: "sap-icon://document"
 				}, {
 					label: "PO Amount",
 					value: this._money(totals.po),
+					state: totals.po < 0 ? "Error" : "None",
 					sub: "Material records",
 					icon: "sap-icon://cart"
 				}, {
 					label: "Availability",
 					value: this._money(totals.availability),
+					state: totals.availability < 0 ? "Error" : "None",
 					sub: "Backend values",
 					icon: "sap-icon://shipping-status"
 				}, {
 					label: "Total Saving",
 					value: this._money(totals.saving),
+					state: totals.saving < 0 ? "Error" : "None",
 					sub: "Backend values",
 					icon: "sap-icon://trend-up"
 				}],
